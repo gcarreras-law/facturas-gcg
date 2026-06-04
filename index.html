@@ -401,7 +401,8 @@ function saveClient(name, nif, email, addr, iva, irpf) {
 // ── DRIVE ─────────────────────────────────────────────────────────────────────
 let driveToken = null;
 let driveReady = false;
-const OAUTH_CLIENT_ID = 'TU_CLIENT_ID';
+const OAUTH_CLIENT_ID = '422182341699-ff7j6b3s8o2c9bjthrfv0p7lj8smkvt7.apps.googleusercontent.com';
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
 
 async function initDrive() {
   try {
@@ -436,8 +437,7 @@ async function verifyToken() {
 }
 
 function startDriveAuth() {
-  if (OAUTH_CLIENT_ID === 'TU_CLIENT_ID') { toast('Sigue las instrucciones al pie del archivo para activar Drive', false); return; }
-  const p = new URLSearchParams({ client_id: OAUTH_CLIENT_ID, redirect_uri: location.href.split('?')[0], response_type: 'token', scope: 'https://www.googleapis.com/auth/drive.file', prompt: 'consent' });
+  const p = new URLSearchParams({ client_id: OAUTH_CLIENT_ID, redirect_uri: location.href.split('?')[0], response_type: 'token', scope: DRIVE_SCOPE, prompt: 'consent' });
   location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
 }
 
@@ -638,21 +638,33 @@ async function generateInvoice() {
   const filename = 'FACTURA - '+seq+' - '+clientName+'.pdf';
   doc.save(filename);
 
+  // Concepto resumido (primera línea con descripción)
+  const concepto = lines.find(l=>l.desc)?.desc || '';
+
+  const invRecord = {seq, year:YEAR, num, date:dateVal, clientName, clientNif:cNif, concepto, base, iva, irpf, ivaPct:ivaPctDisp, irpfPct:irpfPctDisp, total, driveUrl:null};
+
   let driveUrl = null;
   if (driveReady && driveToken) {
     btn.textContent = 'Subiendo a Drive...';
     try {
       driveUrl = await uploadToDrive(new Uint8Array(doc.output('arraybuffer')), filename, dateVal);
+      invRecord.driveUrl = driveUrl;
       const {label} = getQuarter(dateVal);
-      if (driveUrl) toast('Factura '+num+' guardada en Drive · '+label+'/INGRESOS', true);
+      if (driveUrl) toast('Factura '+seq+' guardada en Drive · '+label+'/INGRESOS', true);
       else toast('PDF descargado. No se pudo subir a Drive.', false);
     } catch(e) { toast('PDF descargado. Error Drive: '+e.message, false); }
+
+    // Actualizar Excel de contabilidad
+    btn.textContent = 'Actualizando Excel...';
+    try {
+      await updateContabilidad(invRecord);
+    } catch(e) { console.error('Excel error:', e); }
   } else {
-    toast('Factura '+num+' descargada.', false);
+    toast('Factura '+seq+' descargada. Conecta Drive para subir automáticamente.', false);
   }
 
   saveClient(clientName, cNif, cEmail, cAddr, ivaPctDisp, irpfPctDisp);
-  invoices.push({seq, year:YEAR, num, date:dateVal, clientName, clientNif:cNif, base, iva, irpf, ivaPct:ivaPctDisp, irpfPct:irpfPctDisp, total, driveUrl});
+  invoices.push(invRecord);
   saveData(SK_INV, invoices);
 
   lines = [{desc:'',qty:1,price:''}];
@@ -662,6 +674,109 @@ async function generateInvoice() {
   document.getElementById('f-num').value  = fmtNum(nextSeq());
   btn.disabled=false; btn.textContent='Generar y descargar factura PDF';
   renderLines(); renderHist(); renderStats();
+}
+
+// ── EXCEL DE CONTABILIDAD ────────────────────────────────────────────────────
+// Nombre del archivo Excel en DECLARACIONES
+const EXCEL_NAME = 'Contabilidad_Ingresos_'+new Date().getFullYear()+'.xlsx';
+// Cache del spreadsheetId para no buscarlo cada vez
+let _sheetId = null;
+
+async function getOrCreateSheet() {
+  if (_sheetId) return _sheetId;
+
+  // Buscar si ya existe en DECLARACIONES
+  const q = encodeURIComponent("name='"+EXCEL_NAME+"' and '"+DRIVE.declaracionesId+"' in parents and trashed=false");
+  const res = await driveReq('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id)');
+  if (res.files?.length) { _sheetId = res.files[0].id; return _sheetId; }
+
+  // Crear nueva Google Sheet
+  const created = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer '+driveToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      properties: { title: EXCEL_NAME },
+      sheets: [{ properties: { title: 'Facturas' } }]
+    })
+  }).then(r=>r.json());
+
+  _sheetId = created.spreadsheetId;
+
+  // Mover a carpeta DECLARACIONES
+  await driveReq(
+    'https://www.googleapis.com/drive/v3/files/'+_sheetId+'?addParents='+DRIVE.declaracionesId+'&removeParents=root&fields=id',
+    'PATCH', {}
+  );
+
+  // Escribir cabecera
+  const headers = [['Nº Factura','Fecha','Trimestre','Cliente','NIF Cliente','Concepto',
+                    'Base Imponible','IVA %','IVA Importe','Retención %','Retención Importe',
+                    'Total Factura','Importe Cobrado','Estado']];
+  await sheetsWrite(_sheetId, 'Facturas!A1:N1', headers);
+
+  // Formato cabecera: negrita + fondo gris
+  await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+_sheetId+':batchUpdate', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer '+driveToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests: [
+      { repeatCell: { range: { sheetId:0, startRowIndex:0, endRowIndex:1 },
+        cell: { userEnteredFormat: {
+          backgroundColor: { red:0.85, green:0.85, blue:0.85 },
+          textFormat: { bold: true }
+        }},
+        fields: 'userEnteredFormat(backgroundColor,textFormat)'
+      }},
+      // Validación desplegable en columna Estado (N = col 13)
+      { setDataValidation: { range: { sheetId:0, startRowIndex:1, endRowIndex:1000, startColumnIndex:13, endColumnIndex:14 },
+        rule: { condition: { type:'ONE_OF_LIST', values:[
+          {userEnteredValue:'Pendiente'},
+          {userEnteredValue:'Parcial'},
+          {userEnteredValue:'Cobrada'}
+        ]}, showCustomUi:true, strict:true }
+      }}
+    ]})
+  });
+
+  return _sheetId;
+}
+
+async function sheetsWrite(sheetId, range, values) {
+  await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+encodeURIComponent(range)+'?valueInputOption=USER_ENTERED', {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer '+driveToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values })
+  });
+}
+
+async function sheetsAppend(sheetId, values) {
+  await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/Facturas!A:N:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer '+driveToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values })
+  });
+}
+
+async function updateContabilidad(inv) {
+  const sid = await getOrCreateSheet();
+  const {label} = getQuarter(inv.date);
+  const dateFormatted = inv.date ? new Date(inv.date+'T12:00:00').toLocaleDateString('es-ES') : '';
+  const row = [
+    inv.seq,
+    dateFormatted,
+    label,
+    inv.clientName,
+    inv.clientNif || '',
+    inv.concepto || '',
+    inv.base,
+    inv.ivaPct,
+    inv.iva,
+    inv.irpfPct,
+    inv.irpf,
+    inv.total,
+    0,          // Importe cobrado — se rellena manualmente
+    'Pendiente' // Estado inicial
+  ];
+  await sheetsAppend(sid, [row]);
 }
 
 // ── HISTORIAL ─────────────────────────────────────────────────────────────────
@@ -727,21 +842,6 @@ renderLines(); renderHist(); renderStats();
 initDrive();
 </script>
 
-<!--
-════════════════════════════════════════════════════════════════
-  ACTIVAR GUARDADO AUTOMÁTICO EN GOOGLE DRIVE
-════════════════════════════════════════════════════════════════
-  1. Ve a https://console.cloud.google.com/
-  2. Crea un proyecto nuevo (p.ej. "Facturación GCG")
-  3. Activa la API "Google Drive API"
-  4. Ve a "Credenciales" → "Crear credenciales" → "ID de cliente OAuth"
-  5. Tipo: "Aplicación web"
-  6. En "Orígenes autorizados de JavaScript" añade: null
-  7. Copia el Client ID (termina en .apps.googleusercontent.com)
-  8. Sustituye 'TU_CLIENT_ID' en la línea:
-       const OAUTH_CLIENT_ID = 'TU_CLIENT_ID';
-  9. Guarda y reabre el archivo en el navegador
-════════════════════════════════════════════════════════════════
--->
+<!-- Drive + Sheets configurados. Client ID activo. -->
 </body>
 </html>
