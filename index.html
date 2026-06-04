@@ -567,9 +567,7 @@ async function generateInvoice() {
   doc.text('Descripci\u00F3n Servicio', col.desc, y);
   doc.text('Cantidad', col.cant, y, {align:'right'});
   doc.text('C/U', col.cu, y, {align:'right'});
-  doc.text('Base', col.base, y, {align:'right'});
-  if (ivaPct > 0) doc.text('IVA', col.iva, y, {align:'right'});
-  doc.text('Total', col.total, y, {align:'right'});
+  doc.text('Base Imponible', col.total, y, {align:'right'});
   y+=RH;
 
   // Filas
@@ -581,11 +579,9 @@ async function generateInvoice() {
     doc.setDrawColor(230,230,230); doc.rect(L,y-6,CW,RH,'S');
     let desc=l.desc||''; if(desc.length>60) desc=desc.substring(0,57)+'...';
     doc.text(desc, col.desc, y);
-    doc.text(fmtN(qty),         col.cant,  y, {align:'right'});
-    doc.text(fmtN(price)+' \u20AC',  col.cu,    y, {align:'right'});
-    doc.text(fmtN(lb)+' \u20AC',     col.base,  y, {align:'right'});
-    if (ivaPct>0) doc.text(ivaPctDisp+' %', col.iva, y, {align:'right'});
-    doc.text(fmtN(lt)+' \u20AC',     col.total, y, {align:'right'});
+    doc.text(fmtN(qty),              col.cant,  y, {align:'right'});
+    doc.text(fmtN(price)+' \u20AC', col.cu,    y, {align:'right'});
+    doc.text(fmtN(lb)+' \u20AC',    col.total, y, {align:'right'});
     y+=RH;
   });
   y+=12;
