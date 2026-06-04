@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facturación · Gabriel Carreras Guixé</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #f0f0f0; color: #1a1a1a; font-size: 14px; min-height: 100vh; }
+
+.topbar { background: #1a1a1a; color: #fff; padding: 14px 28px; display: flex; align-items: baseline; gap: 16px; }
+.topbar .title { font-size: 16px; font-weight: 700; }
+.topbar .sub { font-size: 12px; color: #aaa; }
+.topbar .drive-status { margin-left: auto; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #888; display: inline-block; }
+.dot.ok { background: #4caf50; }
+.dot.err { background: #f44336; }
+
+.layout { display: grid; grid-template-columns: 1fr 360px; min-height: calc(100vh - 50px); }
+
+.form-col { background: #fff; padding: 28px 32px; border-right: 1px solid #ddd; overflow-y: auto; }
+.section { margin-bottom: 24px; }
+.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; border-bottom: 1px solid #e8e8e8; padding-bottom: 6px; margin-bottom: 14px; }
+
+.row { display: grid; gap: 12px; margin-bottom: 12px; }
+.row.two   { grid-template-columns: 1fr 1fr; }
+.row.three { grid-template-columns: 1fr 1fr 1fr; }
+.row.four  { grid-template-columns: 1fr 1fr 1fr 1fr; }
+.row.one   { grid-template-columns: 1fr; }
+
+.field { display: flex; flex-direction: column; gap: 4px; position: relative; }
+.field label { font-size: 11px; font-weight: 600; color: #666; }
+.field input, .field textarea {
+  border: 1px solid #ccc; border-radius: 4px; padding: 8px 10px;
+  font-size: 13px; font-family: Arial, sans-serif; color: #1a1a1a;
+  background: #fafafa; outline: none; transition: border-color .15s;
+}
+.field input:focus, .field textarea:focus { border-color: #1a1a1a; background: #fff; }
+.field input[readonly] { background: #f0f0f0; color: #666; cursor: default; }
+.field textarea { resize: vertical; min-height: 54px; }
+
+/* Campos IVA/Retención con badge % */
+.pct-wrapper { position: relative; }
+.pct-wrapper input { padding-right: 28px; }
+.pct-badge {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  font-size: 12px; color: #999; pointer-events: none;
+}
+.tax-hint {
+  font-size: 10px; color: #aaa; margin-top: 3px; line-height: 1.4;
+}
+
+/* Presets rápidos */
+.presets { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.preset-btn {
+  font-size: 11px; padding: 3px 9px; border: 1px solid #ddd;
+  background: #f8f8f8; border-radius: 3px; cursor: pointer;
+  color: #555; font-family: Arial, sans-serif; white-space: nowrap;
+}
+.preset-btn:hover { border-color: #888; color: #1a1a1a; background: #fff; }
+
+/* Autocomplete */
+.ac-list {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: #fff; border: 1px solid #ccc; border-top: none;
+  border-radius: 0 0 4px 4px; z-index: 100; max-height: 180px;
+  overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,.12);
+}
+.ac-list div { padding: 9px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+.ac-list div:hover { background: #f5f5f5; }
+.ac-sub { font-size: 11px; color: #999; margin-top: 1px; }
+
+/* Líneas */
+.lines-head {
+  display: grid; grid-template-columns: 3fr 64px 84px 84px 24px;
+  gap: 6px; font-size: 10px; font-weight: 700; color: #888;
+  text-transform: uppercase; padding-bottom: 5px;
+  border-bottom: 1px solid #e0e0e0; margin-bottom: 6px;
+}
+.line-row { display: grid; grid-template-columns: 3fr 64px 84px 84px 24px; gap: 6px; margin-bottom: 6px; align-items: center; }
+.line-row input {
+  border: 1px solid #ccc; border-radius: 4px; padding: 7px 8px;
+  font-size: 13px; font-family: Arial, sans-serif; color: #1a1a1a;
+  background: #fafafa; outline: none; width: 100%; transition: border-color .15s;
+}
+.line-row input:focus { border-color: #1a1a1a; background: #fff; }
+.line-row input[type="number"] { text-align: right; }
+.line-amt { font-size: 13px; text-align: right; color: #333; font-weight: 600; padding-right: 2px; }
+.btn-rm { background: none; border: none; cursor: pointer; color: #ccc; font-size: 18px; line-height: 1; padding: 2px 4px; border-radius: 3px; }
+.btn-rm:hover { color: #cc0000; }
+.btn-add { width: 100%; background: none; border: 1px dashed #bbb; color: #888; font-size: 12px; padding: 8px; border-radius: 4px; cursor: pointer; margin-top: 2px; font-family: Arial, sans-serif; }
+.btn-add:hover { border-color: #555; color: #333; }
+
+.totals { margin-top: 14px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+.t-row { display: flex; justify-content: space-between; padding: 8px 14px; font-size: 13px; border-bottom: 1px solid #eee; }
+.t-row:last-child { border-bottom: none; background: #1a1a1a; color: #fff; font-weight: 700; font-size: 15px; padding: 10px 14px; }
+.t-row.hidden-row { display: none; }
+.t-row .red { color: #cc3300; }
+
+.btn-gen { width: 100%; margin-top: 22px; background: #1a1a1a; color: #fff; border: none; padding: 13px; font-size: 14px; font-weight: 700; border-radius: 4px; cursor: pointer; font-family: Arial, sans-serif; }
+.btn-gen:hover { background: #333; }
+.btn-gen:disabled { background: #999; cursor: not-allowed; }
+
+/* Historial */
+.hist-col { background: #f0f0f0; padding: 24px 20px; overflow-y: auto; }
+.hist-col h2 { font-size: 14px; font-weight: 700; color: #1a1a1a; border-bottom: 2px solid #1a1a1a; padding-bottom: 7px; margin-bottom: 14px; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+.stat { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 10px 12px; text-align: center; }
+.stat .v { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+.stat .l { font-size: 10px; color: #888; text-transform: uppercase; margin-top: 2px; letter-spacing: 0.5px; }
+.inv-card { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 11px 13px; margin-bottom: 8px; }
+.inv-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.inv-num { font-size: 12px; font-weight: 700; }
+.inv-cli { font-size: 12px; color: #444; margin-top: 2px; }
+.inv-date { font-size: 11px; color: #999; margin-top: 2px; }
+.inv-taxes { font-size: 10px; color: #bbb; margin-top: 2px; }
+.inv-amt { font-size: 13px; font-weight: 700; text-align: right; }
+.inv-base { font-size: 10px; color: #999; text-align: right; margin-top: 2px; }
+.inv-drive { font-size: 10px; margin-top: 2px; text-align: right; }
+.inv-drive a { color: #1a73e8; text-decoration: none; }
+.inv-drive a:hover { text-decoration: underline; }
+.inv-actions { margin-top: 7px; }
+.btn-small { font-size: 11px; padding: 3px 9px; border: 1px solid #ddd; background: #f8f8f8; border-radius: 3px; cursor: pointer; color: #555; font-family: Arial, sans-serif; }
+.btn-small:hover { border-color: #999; color: #1a1a1a; }
+.btn-small.del:hover { border-color: #cc0000; color: #cc0000; }
+.empty { text-align: center; color: #aaa; padding: 40px 10px; font-size: 13px; line-height: 1.6; }
+
+#toast { position: fixed; bottom: 22px; right: 22px; background: #1a1a1a; color: #fff; padding: 11px 18px; border-radius: 4px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 9999; max-width: 340px; }
+#toast.show { opacity: 1; }
+#toast.ok   { background: #1a6e30; }
+#toast.warn { background: #b45309; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="title">Facturación</span>
+  <span class="sub">Gabriel Carreras Guixé · Abogado</span>
+  <div class="drive-status">
+    <span class="dot" id="drive-dot"></span>
+    <span id="drive-label">Conectando con Drive...</span>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="form-col">
+
+    <!-- FACTURA -->
+    <div class="section">
+      <div class="section-title">Datos de la factura</div>
+      <div class="row two">
+        <div class="field">
+          <label>Número de factura</label>
+          <input type="text" id="f-num" readonly>
+        </div>
+        <div class="field">
+          <label>Fecha de emisión</label>
+          <input type="date" id="f-date">
+        </div>
+      </div>
+    </div>
+
+    <!-- CLIENTE -->
+    <div class="section">
+      <div class="section-title">Cliente</div>
+      <div class="row one">
+        <div class="field">
+          <label>Nombre / Razón Social *</label>
+          <input type="text" id="c-name" placeholder="Empieza a escribir para buscar clientes anteriores..." autocomplete="off" oninput="onNameInput()" onblur="hideAC()" onfocus="onNameInput()">
+          <div class="ac-list" id="ac-list" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="row two">
+        <div class="field">
+          <label>NIF / CIF</label>
+          <input type="text" id="c-nif" placeholder="12345678A">
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="c-email" placeholder="cliente@email.com">
+        </div>
+      </div>
+      <div class="row one">
+        <div class="field">
+          <label>Dirección fiscal</label>
+          <input type="text" id="c-addr" placeholder="Calle, número, CP, ciudad">
+        </div>
+      </div>
+    </div>
+
+    <!-- IMPUESTOS -->
+    <div class="section">
+      <div class="section-title">Impuestos</div>
+      <div class="row two">
+        <div class="field">
+          <label>IVA (%)</label>
+          <div class="pct-wrapper">
+            <input type="number" id="f-iva" value="21" min="0" max="100" step="0.1" oninput="calcTotals()">
+            <span class="pct-badge">%</span>
+          </div>
+          <span class="tax-hint">0 = exento de IVA</span>
+        </div>
+        <div class="field">
+          <label>Retención IRPF (%)</label>
+          <div class="pct-wrapper">
+            <input type="number" id="f-irpf" value="15" min="0" max="100" step="0.1" oninput="calcTotals()">
+            <span class="pct-badge">%</span>
+          </div>
+          <span class="tax-hint">0 = sin retención (particulares)</span>
+        </div>
+      </div>
+      <!-- Presets rápidos -->
+      <div class="presets">
+        <span style="font-size:11px;color:#aaa;align-self:center;">Presets:</span>
+        <button class="preset-btn" onclick="setTaxes(21,15)">Autónomo estándar (21% IVA · 15% ret.)</button>
+        <button class="preset-btn" onclick="setTaxes(21,0)">Particular (21% IVA · sin ret.)</button>
+        <button class="preset-btn" onclick="setTaxes(21,7)">Ret. reducida (21% IVA · 7% ret.)</button>
+        <button class="preset-btn" onclick="setTaxes(0,0)">Exento (sin IVA · sin ret.)</button>
+      </div>
+    </div>
+
+    <!-- CONCEPTOS -->
+    <div class="section">
+      <div class="section-title">Conceptos</div>
+      <div class="lines-head">
+        <span>Descripción Servicio</span>
+        <span style="text-align:right">Cant.</span>
+        <span style="text-align:right">C/U</span>
+        <span style="text-align:right">Base</span>
+        <span></span>
+      </div>
+      <div id="lines-container"></div>
+      <button class="btn-add" onclick="addLine()">+ Añadir línea</button>
+
+      <div class="totals">
+        <div class="t-row"><span>Base Imponible</span><span id="t-base">0,00 €</span></div>
+        <div class="t-row" id="row-iva"><span id="lbl-iva">IVA 21%</span><span id="t-iva">0,00 €</span></div>
+        <div class="t-row" id="row-irpf"><span id="lbl-irpf" class="red">Retención 15%</span><span class="red" id="t-irpf">−0,00 €</span></div>
+        <div class="t-row"><span>Total</span><span id="t-total">0,00 €</span></div>
+      </div>
+    </div>
+
+    <!-- OBSERVACIONES -->
+    <div class="section">
+      <div class="section-title">Observaciones (opcional)</div>
+      <div class="field">
+        <textarea id="f-notes" placeholder="Condiciones de pago, número de expediente, etc."></textarea>
+      </div>
+    </div>
+
+    <button class="btn-gen" id="btn-gen" onclick="generateInvoice()">Generar y descargar factura PDF</button>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="hist-col">
+    <h2>Historial <span id="yr-lbl" style="font-weight:400;font-size:12px;color:#888;"></span></h2>
+    <div class="stats" id="stats-box"></div>
+    <div id="hist-list"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const { jsPDF } = window.jspdf;
+
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const EMISOR = {
+  nombre: 'Gabriel Carreras Guixé',
+  nif:    '53296619F',
+  dir1:   'Avinguda del Puig de Rimila, 10, B2-4',
+  dir2:   '08173, Sant Cugat del Vallès, Barcelona',
+  email:  'g.carreras@icab.cat',
+  tel:    '683142264',
+  icab:   '48490',
+  iban:   'ES37 0182 1294 1502 0168 5255'
+};
+
+const DRIVE = {
+  declaracionesId: '1pdDKNN8mD2v4GA1xkx6-10OpjwweNPRG',
+  knownFolders: { '2026-2T': '1ovf-vY1lGtyD6N2FkwbF7Q31FbyrpXXv' }
+};
+
+const YEAR = new Date().getFullYear();
+const SK_INV = 'gcg_invoices_v3';
+const SK_CLI = 'gcg_clients_v1';
+
+function loadData(k) { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }
+function saveData(k, d) { localStorage.setItem(k, JSON.stringify(d)); }
+
+let invoices = loadData(SK_INV);
+let clients  = loadData(SK_CLI);
+
+// ── IMPUESTOS ─────────────────────────────────────────────────────────────────
+function getIva()  { return Math.max(0, parseFloat(document.getElementById('f-iva').value)  || 0) / 100; }
+function getIrpf() { return Math.max(0, parseFloat(document.getElementById('f-irpf').value) || 0) / 100; }
+
+function setTaxes(iva, irpf) {
+  document.getElementById('f-iva').value  = iva;
+  document.getElementById('f-irpf').value = irpf;
+  calcTotals();
+}
+
+// ── NUMERACIÓN ────────────────────────────────────────────────────────────────
+function nextSeq() {
+  const yr = invoices.filter(i => i.year === YEAR);
+  if (!yr.length) return 18;
+  return Math.max(...yr.map(i => i.seq)) + 1;
+}
+function fmtNum(n) { return String(n).padStart(3, '0'); }
+
+// ── LÍNEAS ────────────────────────────────────────────────────────────────────
+let lines = [{ desc: '', qty: 1, price: '' }];
+
+function renderLines() {
+  const c = document.getElementById('lines-container');
+  c.innerHTML = '';
+  lines.forEach((l, i) => {
+    const amt = (parseFloat(l.qty)||0) * (parseFloat(l.price)||0);
+    const d = document.createElement('div');
+    d.className = 'line-row';
+    d.innerHTML = `
+      <input type="text" placeholder="Descripción del servicio" value="${esc(l.desc||'')}" oninput="lines[${i}].desc=this.value">
+      <input type="number" value="${l.qty}" min="0.01" step="0.01" oninput="lines[${i}].qty=parseFloat(this.value)||0;calcTotals();updAmt(${i})">
+      <input type="number" value="${l.price!==''?l.price:''}" min="0" step="0.01" placeholder="0,00" oninput="lines[${i}].price=parseFloat(this.value)||0;calcTotals();updAmt(${i})">
+      <div class="line-amt" id="la-${i}">${amt>0?fmtN(amt)+' €':'—'}</div>
+      <button class="btn-rm" onclick="removeLine(${i})">×</button>`;
+    c.appendChild(d);
+  });
+  calcTotals();
+}
+
+function updAmt(i) {
+  const a = (parseFloat(lines[i].qty)||0)*(parseFloat(lines[i].price)||0);
+  const el = document.getElementById('la-'+i);
+  if (el) el.textContent = a > 0 ? fmtN(a)+' €' : '—';
+}
+function addLine()      { lines.push({desc:'',qty:1,price:''}); renderLines(); }
+function removeLine(i)  { if (lines.length>1) { lines.splice(i,1); renderLines(); } }
+
+function calcTotals() {
+  const base  = lines.reduce((s,l)=>s+(parseFloat(l.qty)||0)*(parseFloat(l.price)||0), 0);
+  const ivaPct  = getIva();
+  const irpfPct = getIrpf();
+  const iva   = base * ivaPct;
+  const irpf  = base * irpfPct;
+  const total = base + iva - irpf;
+
+  document.getElementById('t-base').textContent  = fmtMoney(base);
+  document.getElementById('t-iva').textContent    = fmtMoney(iva);
+  document.getElementById('t-irpf').textContent   = '−'+fmtMoney(irpf);
+  document.getElementById('t-total').textContent  = fmtMoney(total);
+
+  // Etiquetas dinámicas
+  const ivaPctDisp  = parseFloat(document.getElementById('f-iva').value)  || 0;
+  const irpfPctDisp = parseFloat(document.getElementById('f-irpf').value) || 0;
+  document.getElementById('lbl-iva').textContent  = 'IVA ' + ivaPctDisp + '%';
+  document.getElementById('lbl-irpf').textContent = 'Retención ' + irpfPctDisp + '%';
+
+  // Ocultar filas si son 0
+  document.getElementById('row-iva').classList.toggle('hidden-row',  ivaPct  === 0);
+  document.getElementById('row-irpf').classList.toggle('hidden-row', irpfPct === 0);
+}
+
+// ── AUTOCOMPLETE ──────────────────────────────────────────────────────────────
+function onNameInput() {
+  const val = document.getElementById('c-name').value.trim().toLowerCase();
+  const list = document.getElementById('ac-list');
+  if (!val || !clients.length) { list.style.display='none'; return; }
+  const m = clients.filter(c => c.name.toLowerCase().includes(val));
+  if (!m.length) { list.style.display='none'; return; }
+  list.innerHTML = m.map(c => `
+    <div onmousedown="selectClient('${esc(c.name)}','${esc(c.nif||'')}','${esc(c.email||'')}','${esc(c.addr||'')}',${c.iva??21},${c.irpf??15})">
+      ${c.name}
+      <div class="ac-sub">${[c.nif, c.addr].filter(Boolean).join(' · ')}</div>
+    </div>`).join('');
+  list.style.display = 'block';
+}
+
+function selectClient(name, nif, email, addr, iva, irpf) {
+  document.getElementById('c-name').value  = name;
+  document.getElementById('c-nif').value   = nif;
+  document.getElementById('c-email').value = email;
+  document.getElementById('c-addr').value  = addr;
+  document.getElementById('f-iva').value   = iva;
+  document.getElementById('f-irpf').value  = irpf;
+  document.getElementById('ac-list').style.display = 'none';
+  calcTotals();
+}
+
+function hideAC() { setTimeout(() => document.getElementById('ac-list').style.display='none', 150); }
+
+function saveClient(name, nif, email, addr, iva, irpf) {
+  const idx = clients.findIndex(c => c.name.toLowerCase() === name.toLowerCase());
+  const o = { name, nif, email, addr, iva, irpf };
+  if (idx >= 0) clients[idx] = o; else clients.push(o);
+  saveData(SK_CLI, clients);
+}
+
+// ── DRIVE ─────────────────────────────────────────────────────────────────────
+let driveToken = null;
+let driveReady = false;
+const OAUTH_CLIENT_ID = 'TU_CLIENT_ID';
+
+async function initDrive() {
+  try {
+    const stored = sessionStorage.getItem('gcg_drive_token');
+    if (stored) { driveToken = stored; await verifyToken(); return; }
+    setDriveStatus(false, 'Haz clic para conectar Drive');
+    document.getElementById('drive-label').style.cursor = 'pointer';
+    document.getElementById('drive-label').onclick = startDriveAuth;
+  } catch(e) { setDriveStatus(false, 'Drive no disponible'); }
+}
+
+function setDriveStatus(ok, msg) {
+  document.getElementById('drive-dot').className = 'dot ' + (ok ? 'ok' : 'err');
+  document.getElementById('drive-label').textContent = msg;
+  driveReady = ok;
+}
+
+async function verifyToken() {
+  const r = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+    headers: { Authorization: 'Bearer ' + driveToken }
+  });
+  if (r.ok) {
+    const d = await r.json();
+    setDriveStatus(true, 'Drive: ' + (d.user?.emailAddress || 'conectado'));
+  } else {
+    sessionStorage.removeItem('gcg_drive_token');
+    driveToken = null;
+    setDriveStatus(false, 'Sesión expirada — haz clic para reconectar');
+    document.getElementById('drive-label').style.cursor = 'pointer';
+    document.getElementById('drive-label').onclick = startDriveAuth;
+  }
+}
+
+function startDriveAuth() {
+  if (OAUTH_CLIENT_ID === 'TU_CLIENT_ID') { toast('Sigue las instrucciones al pie del archivo para activar Drive', false); return; }
+  const p = new URLSearchParams({ client_id: OAUTH_CLIENT_ID, redirect_uri: location.href.split('?')[0], response_type: 'token', scope: 'https://www.googleapis.com/auth/drive.file', prompt: 'consent' });
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
+}
+
+function checkOAuthCallback() {
+  const hash = location.hash;
+  if (hash.includes('access_token')) {
+    const p = new URLSearchParams(hash.substring(1));
+    const t = p.get('access_token');
+    if (t) { driveToken = t; sessionStorage.setItem('gcg_drive_token', t); history.replaceState(null,'',location.pathname); verifyToken(); }
+  }
+}
+
+function getQuarter(dateStr) {
+  const d = dateStr ? new Date(dateStr+'T12:00:00') : new Date();
+  const m = d.getMonth()+1, y = d.getFullYear();
+  const q = m<=3?1:m<=6?2:m<=9?3:4;
+  return { label: y+'-'+q+'T', year: y, q };
+}
+
+async function getOrCreateIngresosFolder(dateStr) {
+  const { label } = getQuarter(dateStr);
+  if (DRIVE.knownFolders[label]) return DRIVE.knownFolders[label];
+  let trimId = null;
+  const st = await driveReq(`https://www.googleapis.com/drive/v3/files?q=name='${label}' and mimeType='application/vnd.google-apps.folder' and '${DRIVE.declaracionesId}' in parents and trashed=false&fields=files(id)`);
+  if (st.files?.length) { trimId = st.files[0].id; }
+  else { const c = await driveReq('https://www.googleapis.com/drive/v3/files','POST',{name:label,mimeType:'application/vnd.google-apps.folder',parents:[DRIVE.declaracionesId]}); trimId = c.id; }
+  let ingId = null;
+  const si = await driveReq(`https://www.googleapis.com/drive/v3/files?q=name='INGRESOS' and mimeType='application/vnd.google-apps.folder' and '${trimId}' in parents and trashed=false&fields=files(id)`);
+  if (si.files?.length) { ingId = si.files[0].id; }
+  else { const c = await driveReq('https://www.googleapis.com/drive/v3/files','POST',{name:'INGRESOS',mimeType:'application/vnd.google-apps.folder',parents:[trimId]}); ingId = c.id; }
+  DRIVE.knownFolders[label] = ingId;
+  return ingId;
+}
+
+async function driveReq(url, method='GET', body=null) {
+  const opts = { method, headers: { Authorization: 'Bearer '+driveToken } };
+  if (body) { opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error('Drive '+r.status);
+  return r.json();
+}
+
+async function uploadToDrive(pdfBytes, filename, dateStr) {
+  if (!driveReady || !driveToken) return null;
+  try {
+    const folderId = await getOrCreateIngresosFolder(dateStr);
+    const boundary = 'gcg_'+Date.now();
+    const meta = { name: filename, mimeType: 'application/pdf', parents: [folderId] };
+    const enc = new TextEncoder();
+    const p1 = enc.encode('--'+boundary+'\r\nContent-Type: application/json\r\n\r\n'+JSON.stringify(meta)+'\r\n');
+    const p2 = enc.encode('--'+boundary+'\r\nContent-Type: application/pdf\r\n\r\n');
+    const p3 = enc.encode('\r\n--'+boundary+'--');
+    const body = new Uint8Array(p1.length+p2.length+pdfBytes.length+p3.length);
+    body.set(p1,0); body.set(p2,p1.length); body.set(pdfBytes,p1.length+p2.length); body.set(p3,p1.length+p2.length+pdfBytes.length);
+    const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
+      method:'POST', headers:{Authorization:'Bearer '+driveToken,'Content-Type':'multipart/related; boundary='+boundary}, body
+    });
+    if (!r.ok) throw new Error('Upload '+r.status);
+    const res = await r.json();
+    return res.webViewLink || 'https://drive.google.com/file/d/'+res.id+'/view';
+  } catch(e) { console.error(e); return null; }
+}
+
+// ── GENERAR FACTURA ───────────────────────────────────────────────────────────
+async function generateInvoice() {
+  const clientName = document.getElementById('c-name').value.trim();
+  if (!clientName) { toast('Indica el nombre del cliente'); return; }
+  if (!lines.some(l=>l.desc&&parseFloat(l.price)>0)) { toast('Añade al menos un concepto con importe'); return; }
+
+  const btn = document.getElementById('btn-gen');
+  btn.disabled = true; btn.textContent = 'Generando...';
+
+  const seq     = nextSeq();
+  const num     = fmtNum(seq);
+  const dateVal = document.getElementById('f-date').value;
+  const dateFmt = dateVal ? new Date(dateVal+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'}) : '';
+  const cNif    = document.getElementById('c-nif').value.trim();
+  const cEmail  = document.getElementById('c-email').value.trim();
+  const cAddr   = document.getElementById('c-addr').value.trim();
+  const notes   = document.getElementById('f-notes').value.trim();
+  const ivaPct  = getIva();
+  const irpfPct = getIrpf();
+  const ivaPctDisp  = parseFloat(document.getElementById('f-iva').value)  || 0;
+  const irpfPctDisp = parseFloat(document.getElementById('f-irpf').value) || 0;
+
+  const base  = lines.reduce((s,l)=>s+(parseFloat(l.qty)||0)*(parseFloat(l.price)||0), 0);
+  const iva   = base * ivaPct;
+  const irpf  = base * irpfPct;
+  const total = base + iva - irpf;
+
+  // ── PDF ───────────────────────────────────────────────────────────────────────
+  const doc = new jsPDF({unit:'mm',format:'a4'});
+  const PW=210, L=22, R=188, CW=R-L;
+  const RH=10; // row height
+  let y=26;
+
+  // Cabecera
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(20,20,20);
+  doc.text(EMISOR.nombre, L, y);
+  doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.text('FACTURA N\u00BA: '+seq, R, y, {align:'right'});
+  y+=6;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+  doc.text(EMISOR.nif, L, y);
+  doc.text('Fecha: '+dateFmt, R, y, {align:'right'});
+  y+=5; doc.text(EMISOR.dir1, L, y);
+  y+=5; doc.text(EMISOR.dir2, L, y);
+  y+=5; doc.text(EMISOR.email, L, y);
+  y+=5; doc.text(EMISOR.tel, L, y);
+  y+=14;
+
+  doc.setDrawColor(180,180,180); doc.setLineWidth(0.4); doc.line(L,y,R,y); y+=14;
+
+  // Cliente
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(20,20,20);
+  doc.text(clientName, L, y); y+=7;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+  if (cNif)  { doc.text(cNif, L, y); y+=5; }
+  if (cAddr) { const al=doc.splitTextToSize(cAddr,100); doc.text(al,L,y); y+=al.length*5; }
+  y+=14;
+
+  // Tabla — cabecera
+  const col = { desc:L+2, cant:118, cu:140, base:162, iva:173, total:R-1 };
+  doc.setFillColor(245,245,245); doc.rect(L,y-6,CW,RH,'F');
+  doc.setDrawColor(200,200,200); doc.setLineWidth(0.3); doc.rect(L,y-6,CW,RH,'S');
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(40,40,40);
+  doc.text('Descripci\u00F3n Servicio', col.desc, y);
+  doc.text('Cantidad', col.cant, y, {align:'right'});
+  doc.text('C/U', col.cu, y, {align:'right'});
+  doc.text('Base', col.base, y, {align:'right'});
+  if (ivaPct > 0) doc.text('IVA', col.iva, y, {align:'right'});
+  doc.text('Total', col.total, y, {align:'right'});
+  y+=RH;
+
+  // Filas
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(20,20,20);
+  lines.filter(l=>l.desc||parseFloat(l.price)>0).forEach((l,i)=>{
+    const qty=parseFloat(l.qty)||0, price=parseFloat(l.price)||0;
+    const lb=qty*price, li=lb*ivaPct, lt=lb+li;
+    if (i%2===0) { doc.setFillColor(252,252,252); doc.rect(L,y-6,CW,RH,'F'); }
+    doc.setDrawColor(230,230,230); doc.rect(L,y-6,CW,RH,'S');
+    let desc=l.desc||''; if(desc.length>60) desc=desc.substring(0,57)+'...';
+    doc.text(desc, col.desc, y);
+    doc.text(fmtN(qty),         col.cant,  y, {align:'right'});
+    doc.text(fmtN(price)+' \u20AC',  col.cu,    y, {align:'right'});
+    doc.text(fmtN(lb)+' \u20AC',     col.base,  y, {align:'right'});
+    if (ivaPct>0) doc.text(ivaPctDisp+' %', col.iva, y, {align:'right'});
+    doc.text(fmtN(lt)+' \u20AC',     col.total, y, {align:'right'});
+    y+=RH;
+  });
+  y+=12;
+
+  // Bloque inferior — calcular altura dinámica según filas de totales
+  const totRows = 1 + (ivaPct>0?1:0) + (irpfPct>0?1:0) + 1;
+  const blockH = totRows * RH + 8;
+  const blockTop=y, midX=110;
+
+  // Forma de pago
+  doc.setFillColor(248,248,248); doc.setDrawColor(210,210,210); doc.setLineWidth(0.3);
+  doc.rect(L, blockTop, midX-L-4, blockH, 'FD');
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(40,40,40);
+  doc.text('Forma de pago', L+4, blockTop+9);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+  doc.text('Transferencia bancaria', L+4, blockTop+18);
+  doc.text(EMISOR.iban, L+4, blockTop+26);
+
+  // Totales — alineados con blockTop, negro
+  const tx=midX+2, totW=R-tx;
+  let ty = blockTop; // empezar exactamente donde empieza "Forma de pago"
+  function trow(lbl,val,bold,bg) {
+    if(bg){doc.setFillColor(...bg);doc.rect(tx,ty,totW,RH,'F');}
+    doc.setDrawColor(210,210,210);doc.rect(tx,ty,totW,RH,'S');
+    if(bold){doc.setFont('helvetica','bold');doc.setFontSize(10);}
+    else{doc.setFont('helvetica','normal');doc.setFontSize(9);}
+    doc.setTextColor(20,20,20);
+    doc.text(lbl,tx+3,ty+6.5); doc.text(val,R-2,ty+6.5,{align:'right'}); ty+=RH;
+  }
+
+  trow('Base Imponible',                    fmtN(base)+' \u20AC',        false, [248,248,248]);
+  if (ivaPct > 0)  trow('IVA '+ivaPctDisp+' %',        '+'+fmtN(iva)+' \u20AC',  false, [248,248,248]);
+  if (irpfPct > 0) trow('RETENCI\u00D3N '+irpfPctDisp+' %', '-'+fmtN(irpf)+' \u20AC', false, [248,248,248]);
+  trow('Total',                             fmtN(total)+' \u20AC',       true,  [232,232,232]);
+
+  y = blockTop + blockH + 16;
+
+  // Observaciones
+  if (notes) {
+    doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(100,100,100);
+    doc.text(doc.splitTextToSize(notes,CW), L, y);
+  }
+
+  // Pie
+  doc.setDrawColor(180,180,180); doc.line(L,281,R,281);
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+  doc.text(EMISOR.nombre+' · Abogado · Colegiado ICAB nº '+EMISOR.icab, PW/2, 287, {align:'center'});
+
+  // ── GUARDAR ───────────────────────────────────────────────────────────────────
+  const filename = 'FACTURA - '+seq+' - '+clientName+'.pdf';
+  doc.save(filename);
+
+  let driveUrl = null;
+  if (driveReady && driveToken) {
+    btn.textContent = 'Subiendo a Drive...';
+    try {
+      driveUrl = await uploadToDrive(new Uint8Array(doc.output('arraybuffer')), filename, dateVal);
+      const {label} = getQuarter(dateVal);
+      if (driveUrl) toast('Factura '+num+' guardada en Drive · '+label+'/INGRESOS', true);
+      else toast('PDF descargado. No se pudo subir a Drive.', false);
+    } catch(e) { toast('PDF descargado. Error Drive: '+e.message, false); }
+  } else {
+    toast('Factura '+num+' descargada.', false);
+  }
+
+  saveClient(clientName, cNif, cEmail, cAddr, ivaPctDisp, irpfPctDisp);
+  invoices.push({seq, year:YEAR, num, date:dateVal, clientName, clientNif:cNif, base, iva, irpf, ivaPct:ivaPctDisp, irpfPct:irpfPctDisp, total, driveUrl});
+  saveData(SK_INV, invoices);
+
+  lines = [{desc:'',qty:1,price:''}];
+  ['c-name','c-nif','c-email','c-addr','f-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-iva').value  = 21;
+  document.getElementById('f-irpf').value = 15;
+  document.getElementById('f-num').value  = fmtNum(nextSeq());
+  btn.disabled=false; btn.textContent='Generar y descargar factura PDF';
+  renderLines(); renderHist(); renderStats();
+}
+
+// ── HISTORIAL ─────────────────────────────────────────────────────────────────
+function renderHist() {
+  const el = document.getElementById('hist-list');
+  const yr = invoices.filter(i=>i.year===YEAR).slice().reverse();
+  if (!yr.length) { el.innerHTML='<div class="empty">Aún no hay facturas este año.<br>Las que generes aparecerán aquí.</div>'; return; }
+  el.innerHTML = yr.map(inv=>`
+    <div class="inv-card">
+      <div class="inv-top">
+        <div>
+          <div class="inv-num">Factura ${inv.num}</div>
+          <div class="inv-cli">${inv.clientName}${inv.clientNif?' · '+inv.clientNif:''}</div>
+          <div class="inv-date">${inv.date?new Date(inv.date+'T12:00:00').toLocaleDateString('es-ES'):''}</div>
+          <div class="inv-taxes">IVA ${inv.ivaPct??21}% · Ret. ${inv.irpfPct??15}%</div>
+        </div>
+        <div>
+          <div class="inv-amt">${fmtMoney(inv.total)}</div>
+          <div class="inv-base">Base: ${fmtMoney(inv.base)}</div>
+          ${inv.driveUrl?`<div class="inv-drive"><a href="${inv.driveUrl}" target="_blank">Ver en Drive ↗</a></div>`:''}
+        </div>
+      </div>
+      <div class="inv-actions">
+        <button class="btn-small del" onclick="delInv(${inv.seq})">Eliminar del historial</button>
+      </div>
+    </div>`).join('');
+}
+
+function delInv(seq) {
+  if (!confirm('¿Eliminar esta entrada del historial local?')) return;
+  invoices = invoices.filter(i=>!(i.seq===seq&&i.year===YEAR));
+  saveData(SK_INV, invoices);
+  document.getElementById('f-num').value = fmtNum(nextSeq());
+  renderHist(); renderStats();
+}
+
+function renderStats() {
+  const yr=invoices.filter(i=>i.year===YEAR);
+  const base=yr.reduce((s,i)=>s+(i.base||0),0);
+  const total=yr.reduce((s,i)=>s+(i.total||0),0);
+  document.getElementById('stats-box').innerHTML=`
+    <div class="stat"><div class="v">${yr.length}</div><div class="l">Facturas ${YEAR}</div></div>
+    <div class="stat"><div class="v">${fmtN(base)} €</div><div class="l">Base acumulada</div></div>
+    <div class="stat"><div class="v">${fmtN(total)} €</div><div class="l">Total cobrado</div></div>
+    <div class="stat"><div class="v">${clients.length}</div><div class="l">Clientes guardados</div></div>`;
+}
+
+function fmtMoney(n) { return fmtN(n)+' €'; }
+function fmtN(n) { return (n||0).toFixed(2).replace('.',','); }
+function esc(s) { return (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+function toast(msg,ok) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='show'+(ok===true?' ok':ok===false?' warn':'');
+  setTimeout(()=>t.className='',4000);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+checkOAuthCallback();
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+document.getElementById('f-num').value  = fmtNum(nextSeq());
+document.getElementById('yr-lbl').textContent = YEAR;
+renderLines(); renderHist(); renderStats();
+initDrive();
+</script>
+
+<!--
+════════════════════════════════════════════════════════════════
+  ACTIVAR GUARDADO AUTOMÁTICO EN GOOGLE DRIVE
+════════════════════════════════════════════════════════════════
+  1. Ve a https://console.cloud.google.com/
+  2. Crea un proyecto nuevo (p.ej. "Facturación GCG")
+  3. Activa la API "Google Drive API"
+  4. Ve a "Credenciales" → "Crear credenciales" → "ID de cliente OAuth"
+  5. Tipo: "Aplicación web"
+  6. En "Orígenes autorizados de JavaScript" añade: null
+  7. Copia el Client ID (termina en .apps.googleusercontent.com)
+  8. Sustituye 'TU_CLIENT_ID' en la línea:
+       const OAUTH_CLIENT_ID = 'TU_CLIENT_ID';
+  9. Guarda y reabre el archivo en el navegador
+════════════════════════════════════════════════════════════════
+-->
+</body>
+</html>
