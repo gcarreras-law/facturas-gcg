@@ -3,836 +3,1461 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Facturación · Gabriel Carreras Guixé</title>
+<title>Despacho · GCG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: Arial, sans-serif; background: #f0f0f0; color: #1a1a1a; font-size: 14px; min-height: 100vh; }
-
-.topbar { background: #1a1a1a; color: #fff; padding: 14px 28px; display: flex; align-items: baseline; gap: 16px; }
-.topbar .title { font-size: 16px; font-weight: 700; }
-.topbar .sub { font-size: 12px; color: #aaa; }
-.topbar .drive-status { margin-left: auto; font-size: 12px; display: flex; align-items: center; gap: 6px; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: #888; display: inline-block; }
-.dot.ok { background: #4caf50; }
-.dot.err { background: #f44336; }
-
-.layout { display: grid; grid-template-columns: 1fr 360px; min-height: calc(100vh - 50px); }
-
-.form-col { background: #fff; padding: 28px 32px; border-right: 1px solid #ddd; overflow-y: auto; }
-.section { margin-bottom: 24px; }
-.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; border-bottom: 1px solid #e8e8e8; padding-bottom: 6px; margin-bottom: 14px; }
-
-.row { display: grid; gap: 12px; margin-bottom: 12px; }
-.row.two   { grid-template-columns: 1fr 1fr; }
-.row.three { grid-template-columns: 1fr 1fr 1fr; }
-.row.four  { grid-template-columns: 1fr 1fr 1fr 1fr; }
-.row.one   { grid-template-columns: 1fr; }
-
-.field { display: flex; flex-direction: column; gap: 4px; position: relative; }
-.field label { font-size: 11px; font-weight: 600; color: #666; }
-.field input, .field textarea {
-  border: 1px solid #ccc; border-radius: 4px; padding: 8px 10px;
-  font-size: 13px; font-family: Arial, sans-serif; color: #1a1a1a;
-  background: #fafafa; outline: none; transition: border-color .15s;
+/* ===================== TOKENS ===================== */
+:root{
+  --ink:#16202E;
+  --ink-soft:#52606D;
+  --ink-faint:#8A95A1;
+  --bg:#F6F5F1;
+  --surface:#FFFFFF;
+  --surface-2:#FBFAF7;
+  --line:#E5E2DA;
+  --line-strong:#D6D2C7;
+  --brand:#2C4A52;
+  --brand-deep:#1E353B;
+  --brand-tint:#EAF0F0;
+  --urgent:#A8392F;
+  --urgent-tint:#F7E9E7;
+  --soon:#9A6418;
+  --soon-tint:#F6EEDF;
+  --ok:#3F6B57;
+  --ok-tint:#E8F0EC;
+  --shadow:0 1px 2px rgba(22,32,46,.04), 0 8px 24px rgba(22,32,46,.06);
+  --radius:10px;
+  --radius-sm:7px;
 }
-.field input:focus, .field textarea:focus { border-color: #1a1a1a; background: #fff; }
-.field input[readonly] { background: #f0f0f0; color: #666; cursor: default; }
-.field textarea { resize: vertical; min-height: 54px; }
-
-/* Campos IVA/Retención con badge % */
-.pct-wrapper { position: relative; }
-.pct-wrapper input { padding-right: 28px; }
-.pct-badge {
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  font-size: 12px; color: #999; pointer-events: none;
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:"Inter",system-ui,sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
 }
-.tax-hint {
-  font-size: 10px; color: #aaa; margin-top: 3px; line-height: 1.4;
+button{font-family:inherit;cursor:pointer}
+input,select,textarea{font-family:inherit;font-size:14px}
+.mono{font-family:"JetBrains Mono",monospace}
+.serif{font-family:"Newsreader",serif}
+
+/* ===================== APP SHELL ===================== */
+.app{display:grid;grid-template-columns:236px 1fr;height:100vh;overflow:hidden}
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  background:var(--brand-deep);
+  color:#D8E0E0;
+  display:flex;flex-direction:column;
+  padding:22px 16px;
 }
-
-/* Presets rápidos */
-.presets { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
-.preset-btn {
-  font-size: 11px; padding: 3px 9px; border: 1px solid #ddd;
-  background: #f8f8f8; border-radius: 3px; cursor: pointer;
-  color: #555; font-family: Arial, sans-serif; white-space: nowrap;
+.wordmark{display:flex;align-items:baseline;gap:9px;padding:4px 6px 22px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:16px}
+.wordmark .badge{
+  font-family:"JetBrains Mono",monospace;font-weight:600;font-size:13px;letter-spacing:.5px;
+  background:#D8E0E0;color:var(--brand-deep);padding:3px 7px;border-radius:5px;
 }
-.preset-btn:hover { border-color: #888; color: #1a1a1a; background: #fff; }
-
-/* Autocomplete */
-.ac-list {
-  position: absolute; top: 100%; left: 0; right: 0;
-  background: #fff; border: 1px solid #ccc; border-top: none;
-  border-radius: 0 0 4px 4px; z-index: 100; max-height: 180px;
-  overflow-y: auto; box-shadow: 0 4px 12px rgba(0,0,0,.12);
+.wordmark .name{font-family:"Newsreader",serif;font-size:22px;font-weight:500;color:#fff;letter-spacing:.2px}
+.nav{display:flex;flex-direction:column;gap:2px;flex:1}
+.nav button{
+  display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  background:transparent;border:none;color:#AEBCBC;
+  padding:10px 11px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;
+  transition:background .12s,color .12s;
 }
-.ac-list div { padding: 9px 12px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
-.ac-list div:hover { background: #f5f5f5; }
-.ac-sub { font-size: 11px; color: #999; margin-top: 1px; }
-
-/* Líneas */
-.lines-head {
-  display: grid; grid-template-columns: 3fr 64px 84px 84px 24px;
-  gap: 6px; font-size: 10px; font-weight: 700; color: #888;
-  text-transform: uppercase; padding-bottom: 5px;
-  border-bottom: 1px solid #e0e0e0; margin-bottom: 6px;
+.nav button .ico{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7}
+.nav button .count{margin-left:auto;font-size:11px;font-weight:600;background:rgba(255,255,255,.1);color:#C7D2D2;padding:1px 7px;border-radius:20px;min-width:20px;text-align:center}
+.nav button:hover{background:rgba(255,255,255,.06);color:#EAF0F0}
+.nav button.active{background:var(--brand);color:#fff}
+.nav button.active .count{background:rgba(255,255,255,.18);color:#fff}
+.sidebar .foot{display:flex;flex-direction:column;gap:9px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+.sync-state{display:flex;align-items:center;gap:8px;font-size:11.5px;color:#9FB0B0;padding:0 6px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);flex:none}
+.dot.on{background:#79C9A6;box-shadow:0 0 0 3px rgba(121,201,166,.18)}
+.dot.busy{background:#E0B65C;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.4}}
+.btn-ghost-light{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#DCE4E4;
+  padding:8px 11px;border-radius:var(--radius-sm);font-size:12.5px;font-weight:500;
+  display:flex;align-items:center;gap:8px;justify-content:center;transition:background .12s;
 }
-.line-row { display: grid; grid-template-columns: 3fr 64px 84px 84px 24px; gap: 6px; margin-bottom: 6px; align-items: center; }
-.line-row input {
-  border: 1px solid #ccc; border-radius: 4px; padding: 7px 8px;
-  font-size: 13px; font-family: Arial, sans-serif; color: #1a1a1a;
-  background: #fafafa; outline: none; width: 100%; transition: border-color .15s;
+.btn-ghost-light:hover{background:rgba(255,255,255,.13)}
+
+/* ---------- Main ---------- */
+.main{overflow-y:auto;display:flex;flex-direction:column}
+.topbar{
+  position:sticky;top:0;z-index:5;background:rgba(246,245,241,.86);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+  padding:18px 30px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
 }
-.line-row input:focus { border-color: #1a1a1a; background: #fff; }
-.line-row input[type="number"] { text-align: right; }
-.line-amt { font-size: 13px; text-align: right; color: #333; font-weight: 600; padding-right: 2px; }
-.btn-rm { background: none; border: none; cursor: pointer; color: #ccc; font-size: 18px; line-height: 1; padding: 2px 4px; border-radius: 3px; }
-.btn-rm:hover { color: #cc0000; }
-.btn-add { width: 100%; background: none; border: 1px dashed #bbb; color: #888; font-size: 12px; padding: 8px; border-radius: 4px; cursor: pointer; margin-top: 2px; font-family: Arial, sans-serif; }
-.btn-add:hover { border-color: #555; color: #333; }
+.topbar .eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:1.3px;color:var(--ink-faint);font-weight:600;margin-bottom:3px}
+.topbar h1{font-family:"Newsreader",serif;font-weight:500;font-size:27px;line-height:1.1;letter-spacing:.2px}
+.topbar h1 .date-day{color:var(--brand)}
+.btn-primary{
+  background:var(--brand);color:#fff;border:none;padding:10px 16px;border-radius:var(--radius-sm);
+  font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:8px;transition:background .12s,transform .06s;
+}
+.btn-primary:hover{background:var(--brand-deep)}
+.btn-primary:active{transform:translateY(1px)}
+.btn-primary .ico{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+.content{padding:24px 30px 60px;flex:1}
 
-.totals { margin-top: 14px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
-.t-row { display: flex; justify-content: space-between; padding: 8px 14px; font-size: 13px; border-bottom: 1px solid #eee; }
-.t-row:last-child { border-bottom: none; background: #1a1a1a; color: #fff; font-weight: 700; font-size: 15px; padding: 10px 14px; }
-.t-row.hidden-row { display: none; }
-.t-row .red { color: #cc3300; }
+/* ---------- Resumen chips ---------- */
+.summary{display:flex;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
+.summary .cell{flex:1;padding:15px 20px;border-right:1px solid var(--line)}
+.summary .cell:last-child{border-right:none}
+.summary .cell .k{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-faint);font-weight:600}
+.summary .cell .v{font-family:"Newsreader",serif;font-size:30px;font-weight:500;line-height:1.1;margin-top:4px}
+.summary .cell .v.alert{color:var(--urgent)}
+.summary .cell .v.warn{color:var(--soon)}
 
-.btn-gen { width: 100%; margin-top: 22px; background: #1a1a1a; color: #fff; border: none; padding: 13px; font-size: 14px; font-weight: 700; border-radius: 4px; cursor: pointer; font-family: Arial, sans-serif; }
-.btn-gen:hover { background: #333; }
-.btn-gen:disabled { background: #999; cursor: not-allowed; }
+/* ---------- Panel grid (Hoy) ---------- */
+.panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.col-stack{display:flex;flex-direction:column;gap:20px}
+.block{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.block > header{
+  display:flex;align-items:center;gap:9px;padding:14px 18px;border-bottom:1px solid var(--line);
+}
+.block > header .label{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.block > header .tag{margin-left:auto;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--surface-2);color:var(--ink-faint);border:1px solid var(--line)}
+.block > header .rail{width:8px;height:8px;border-radius:2px}
+.rail.r-urgent,.tag.r-urgent{background:var(--urgent)}.tag.r-urgent{color:#fff;border:none}
+.rail.r-soon,.tag.r-soon{background:var(--soon)}.tag.r-soon{color:#fff;border:none}
+.rail.r-brand{background:var(--brand)}
+.rail.r-ok{background:var(--ok)}
+.block .body{padding:6px}
+.empty{padding:26px 18px;text-align:center;color:var(--ink-faint);font-size:13px}
+.empty .serif{display:block;font-size:16px;color:var(--ink-soft);margin-bottom:3px}
 
-/* Historial */
-.hist-col { background: #f0f0f0; padding: 24px 20px; overflow-y: auto; }
-.hist-col h2 { font-size: 14px; font-weight: 700; color: #1a1a1a; border-bottom: 2px solid #1a1a1a; padding-bottom: 7px; margin-bottom: 14px; }
-.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
-.stat { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 10px 12px; text-align: center; }
-.stat .v { font-size: 16px; font-weight: 700; color: #1a1a1a; }
-.stat .l { font-size: 10px; color: #888; text-transform: uppercase; margin-top: 2px; letter-spacing: 0.5px; }
-.inv-card { background: #fff; border: 1px solid #ddd; border-radius: 4px; padding: 11px 13px; margin-bottom: 8px; }
-.inv-top { display: flex; justify-content: space-between; align-items: flex-start; }
-.inv-num { font-size: 12px; font-weight: 700; }
-.inv-cli { font-size: 12px; color: #444; margin-top: 2px; }
-.inv-date { font-size: 11px; color: #999; margin-top: 2px; }
-.inv-taxes { font-size: 10px; color: #bbb; margin-top: 2px; }
-.inv-amt { font-size: 13px; font-weight: 700; text-align: right; }
-.inv-base { font-size: 10px; color: #999; text-align: right; margin-top: 2px; }
-.inv-drive { font-size: 10px; margin-top: 2px; text-align: right; }
-.inv-drive a { color: #1a73e8; text-decoration: none; }
-.inv-drive a:hover { text-decoration: underline; }
-.inv-actions { margin-top: 7px; }
-.btn-small { font-size: 11px; padding: 3px 9px; border: 1px solid #ddd; background: #f8f8f8; border-radius: 3px; cursor: pointer; color: #555; font-family: Arial, sans-serif; }
-.btn-small:hover { border-color: #999; color: #1a1a1a; }
-.btn-small.del:hover { border-color: #cc0000; color: #cc0000; }
-.empty { text-align: center; color: #aaa; padding: 40px 10px; font-size: 13px; line-height: 1.6; }
+/* ---------- Task / event row ---------- */
+.row{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border-radius:var(--radius-sm);transition:background .12s}
+.row:hover{background:var(--surface-2)}
+.row + .row{border-top:1px solid var(--line)}
+.check{
+  width:18px;height:18px;border:1.7px solid var(--line-strong);border-radius:5px;flex:none;margin-top:1px;
+  background:var(--surface);display:flex;align-items:center;justify-content:center;transition:all .12s;
+}
+.check:hover{border-color:var(--brand)}
+.check.done{background:var(--ok);border-color:var(--ok)}
+.check svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:2.5;opacity:0}
+.check.done svg{opacity:1}
+.row .main-txt{flex:1;min-width:0}
+.row .title{font-weight:500;color:var(--ink);font-size:13.5px}
+.row.is-done .title{text-decoration:line-through;color:var(--ink-faint)}
+.row .meta{display:flex;align-items:center;gap:8px;margin-top:3px;font-size:12px;color:var(--ink-soft);flex-wrap:wrap}
+.row .meta .cli{color:var(--brand);font-weight:600}
+.row .meta .ref{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--ink-faint)}
+.due{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap}
+.due.urgent{background:var(--urgent-tint);color:var(--urgent)}
+.due.soon{background:var(--soon-tint);color:var(--soon)}
+.due.normal{background:var(--brand-tint);color:var(--brand)}
+.time-chip{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-tint);padding:3px 8px;border-radius:5px;flex:none}
+.pri{width:6px;align-self:stretch;border-radius:3px;flex:none}
+.pri.alta{background:var(--urgent)}.pri.media{background:var(--soon)}.pri.baja{background:var(--line-strong)}
+.row .acts{display:flex;gap:2px;opacity:0;transition:opacity .12s}
+.row:hover .acts{opacity:1}
+.icon-btn{background:transparent;border:none;width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--ink-faint)}
+.icon-btn:hover{background:var(--line);color:var(--ink)}
+.icon-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
 
-#toast { position: fixed; bottom: 22px; right: 22px; background: #1a1a1a; color: #fff; padding: 11px 18px; border-radius: 4px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 9999; max-width: 340px; }
-#toast.show { opacity: 1; }
-#toast.ok   { background: #1a6e30; }
-#toast.warn { background: #b45309; }
+/* ---------- Type pill (agenda) ---------- */
+.type-pill{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:2px 7px;border-radius:4px}
+.type-vista{background:#EDE6F3;color:#6B4E8C}
+.type-plazo{background:var(--urgent-tint);color:var(--urgent)}
+.type-reunion{background:var(--brand-tint);color:var(--brand)}
+.type-llamada{background:var(--ok-tint);color:var(--ok)}
+.type-otro{background:var(--surface-2);color:var(--ink-soft)}
+
+/* ---------- Clientes ---------- */
+.cli-layout{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+.cli-list{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+.cli-search{padding:10px;border-bottom:1px solid var(--line)}
+.cli-search input{width:100%;border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px 11px;background:var(--surface-2);outline:none}
+.cli-search input:focus{border-color:var(--brand);background:var(--surface)}
+.cli-item{display:flex;align-items:center;gap:11px;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .12s}
+.cli-item:hover{background:var(--surface-2)}
+.cli-item.sel{background:var(--brand-tint)}
+.avatar{width:34px;height:34px;border-radius:8px;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;flex:none}
+.cli-item .nm{font-weight:600;font-size:13.5px;line-height:1.2}
+.cli-item .rf{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--ink-faint)}
+.cli-item .badge-n{margin-left:auto;font-size:11px;font-weight:600;color:var(--urgent);background:var(--urgent-tint);padding:1px 7px;border-radius:20px}
+
+.cli-detail{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);min-height:300px}
+.cli-detail .head{padding:22px 24px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;gap:16px}
+.cli-detail .head .avatar{width:46px;height:46px;font-size:17px;border-radius:10px}
+.cli-detail .head h2{font-family:"Newsreader",serif;font-weight:500;font-size:23px}
+.cli-detail .head .sub{display:flex;gap:14px;flex-wrap:wrap;margin-top:5px;font-size:12.5px;color:var(--ink-soft)}
+.cli-detail .head .sub a{color:var(--brand);text-decoration:none}
+.cli-detail .head .sub a:hover{text-decoration:underline}
+.cli-detail .head .ref-tag{font-family:"JetBrains Mono",monospace;font-size:11.5px;background:var(--surface-2);border:1px solid var(--line);padding:2px 8px;border-radius:5px;color:var(--ink-soft)}
+.cli-detail .head .hacts{margin-left:auto;display:flex;gap:6px}
+.notes-box{margin:16px 24px;padding:13px 15px;background:var(--soon-tint);border-radius:var(--radius-sm);font-size:13px;color:#5C4A22;border-left:3px solid var(--soon)}
+.section-head{display:flex;align-items:center;gap:9px;padding:8px 24px;margin-top:8px}
+.section-head .label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ink-faint)}
+.section-head .add{margin-left:auto;font-size:12px;color:var(--brand);font-weight:600;background:none;border:none;display:flex;align-items:center;gap:4px}
+.section-head .add:hover{text-decoration:underline}
+.section-head .add svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+.cli-detail .listwrap{padding:0 14px 8px}
+
+/* ---------- Tareas (tabla) ---------- */
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.toolbar input[type=text]{flex:1;min-width:180px;border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 12px;background:var(--surface);outline:none}
+.toolbar input[type=text]:focus{border-color:var(--brand)}
+.seg{display:flex;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);overflow:hidden}
+.seg button{background:transparent;border:none;padding:8px 13px;font-size:12.5px;font-weight:500;color:var(--ink-soft);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:none}
+.seg button.on{background:var(--brand);color:#fff}
+.table-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-faint);font-weight:700;padding:11px 16px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+tbody td{padding:12px 16px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--surface-2)}
+tbody tr.done td .tt{text-decoration:line-through;color:var(--ink-faint)}
+td .tt{font-weight:500}
+td .cli-chip{color:var(--brand);font-weight:600;font-size:12.5px}
+td .acts{display:flex;gap:2px;justify-content:flex-end}
+
+/* ---------- Modal ---------- */
+.overlay{position:fixed;inset:0;background:rgba(22,32,46,.42);backdrop-filter:blur(2px);display:flex;align-items:flex-start;justify-content:center;padding:60px 20px;z-index:50;opacity:0;pointer-events:none;transition:opacity .15s}
+.overlay.show{opacity:1;pointer-events:auto}
+.modal{background:var(--surface);border-radius:14px;width:100%;max-width:520px;box-shadow:0 24px 60px rgba(22,32,46,.28);transform:translateY(-8px);transition:transform .18s}
+.overlay.show .modal{transform:none}
+.modal header{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.modal header h3{font-family:"Newsreader",serif;font-weight:500;font-size:20px}
+.modal .body{padding:20px 24px;display:flex;flex-direction:column;gap:15px;max-height:64vh;overflow-y:auto}
+.modal footer{padding:16px 24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field label{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-soft)}
+.field input,.field select,.field textarea{
+  border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 12px;background:var(--surface);outline:none;color:var(--ink);
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint)}
+.field textarea{resize:vertical;min-height:64px}
+.btn-text{background:none;border:none;color:var(--ink-soft);font-weight:500;padding:9px 6px;font-size:13.5px}
+.btn-text:hover{color:var(--ink)}
+.btn-danger{background:none;border:none;color:var(--urgent);font-weight:600;font-size:13px;display:flex;align-items:center;gap:5px}
+.btn-danger:hover{text-decoration:underline}
+.btn-danger svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+
+/* ---------- Toast ---------- */
+.toast-wrap{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center}
+.toast{background:var(--ink);color:#fff;padding:11px 18px;border-radius:9px;font-size:13px;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.2);display:flex;align-items:center;gap:9px;animation:rise .25s}
+.toast.err{background:var(--urgent)}
+.toast svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+
+/* ---------- Config modal extras ---------- */
+.cfg-note{font-size:12.5px;color:var(--ink-soft);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;line-height:1.55}
+.cfg-note b{color:var(--ink)}
+.cfg-note code{font-family:"JetBrains Mono",monospace;background:var(--brand-tint);padding:1px 5px;border-radius:4px;font-size:11.5px}
+.cfg-row{display:flex;gap:10px;align-items:center}
+.status-line{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:9px 12px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--line)}
+
+/* ---------- Responsive ---------- */
+@media(max-width:920px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;width:236px;transform:translateX(-100%);transition:transform .2s;z-index:40}
+  .sidebar.open{transform:none}
+  .menu-toggle{display:inline-flex!important}
+  .panel-grid,.cli-layout{grid-template-columns:1fr}
+  .summary{flex-wrap:wrap}.summary .cell{min-width:46%}
+  .field.row2{grid-template-columns:1fr}
+}
+.menu-toggle{display:none;background:var(--surface);border:1px solid var(--line);width:38px;height:38px;border-radius:8px;align-items:center;justify-content:center}
+.menu-toggle svg{width:20px;height:20px;stroke:var(--ink);fill:none;stroke-width:2}
+.scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:35}
+.scrim.show{display:block}
+
+*:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ===================== FACTURAS ===================== */
+.fac-layout{display:grid;grid-template-columns:1fr 330px;gap:20px;align-items:start}
+.fac-form{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 24px}
+.fac-sec{margin-bottom:22px}
+.fac-sec .sec-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ink-faint);border-bottom:1px solid var(--line);padding-bottom:7px;margin-bottom:14px}
+.frow{display:grid;gap:12px;margin-bottom:12px}
+.frow.two{grid-template-columns:1fr 1fr}.frow.one{grid-template-columns:1fr}
+.ffield{display:flex;flex-direction:column;gap:5px;position:relative}
+.ffield label{font-size:11.5px;font-weight:600;color:var(--ink-soft)}
+.ffield input,.ffield textarea{border:1px solid var(--line);border-radius:var(--radius-sm);padding:9px 11px;background:var(--surface);outline:none;color:var(--ink)}
+.ffield input:focus,.ffield textarea:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-tint)}
+.ffield input[readonly]{background:var(--surface-2);color:var(--ink-soft)}
+.pctwrap{position:relative}.pctwrap input{padding-right:26px}
+.pctbadge{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--ink-faint);pointer-events:none}
+.hint{font-size:10.5px;color:var(--ink-faint);margin-top:2px}
+.presets{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.presets .pl{font-size:11px;color:var(--ink-faint)}
+.preset{font-size:11px;padding:4px 10px;border:1px solid var(--line);background:var(--surface-2);border-radius:20px;color:var(--ink-soft)}
+.preset:hover{border-color:var(--brand);color:var(--brand)}
+.ac{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--line-strong);border-top:none;border-radius:0 0 var(--radius-sm) var(--radius-sm);z-index:30;max-height:200px;overflow-y:auto;box-shadow:var(--shadow)}
+.ac div{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
+.ac div:hover{background:var(--brand-tint)}
+.ac .acs{font-size:11px;color:var(--ink-faint);margin-top:1px}
+.lines-h{display:grid;grid-template-columns:1fr 60px 90px 90px 26px;gap:8px;font-size:10px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.lrow{display:grid;grid-template-columns:1fr 60px 90px 90px 26px;gap:8px;margin-bottom:7px;align-items:center}
+.lrow input{border:1px solid var(--line);border-radius:6px;padding:8px;background:var(--surface);outline:none;width:100%}
+.lrow input:focus{border-color:var(--brand)}
+.lrow input[type=number]{text-align:right}
+.lamt{font-size:13px;text-align:right;font-weight:600;color:var(--ink)}
+.lrm{background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:18px;line-height:1}
+.lrm:hover{color:var(--urgent)}
+.laddline{width:100%;background:none;border:1px dashed var(--line-strong);color:var(--ink-soft);font-size:12.5px;padding:9px;border-radius:var(--radius-sm);margin-top:4px}
+.laddline:hover{border-color:var(--brand);color:var(--brand)}
+.ftotals{margin-top:16px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.ftrow{display:flex;justify-content:space-between;padding:9px 15px;font-size:13.5px;border-bottom:1px solid var(--line)}
+.ftrow.hide{display:none}
+.ftrow.grand{background:var(--brand-deep);color:#fff;font-weight:700;font-size:15px;border-bottom:none}
+.ftrow .red{color:var(--urgent)}
+.fgen{width:100%;margin-top:20px;background:var(--brand);color:#fff;border:none;padding:13px;font-size:14px;font-weight:700;border-radius:var(--radius-sm)}
+.fgen:hover{background:var(--brand-deep)}.fgen:disabled{background:var(--ink-faint);cursor:not-allowed}
+.fhist .fstats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.fstat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:11px 13px;text-align:center}
+.fstat .v{font-family:"Newsreader",serif;font-size:21px;font-weight:500;color:var(--ink)}
+.fstat .l{font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.invcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:9px;box-shadow:var(--shadow)}
+.invcard .it{display:flex;justify-content:space-between;align-items:flex-start}
+.invnum{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:600;color:var(--brand)}
+.invcli{font-size:13px;font-weight:500;margin-top:2px}
+.invmeta{font-size:11px;color:var(--ink-faint);margin-top:2px}
+.invamt{font-family:"Newsreader",serif;font-size:16px;font-weight:500;text-align:right}
+.invbase{font-size:10.5px;color:var(--ink-faint);text-align:right}
+.invdrive{font-size:11px;margin-top:3px;text-align:right}.invdrive a{color:var(--brand);text-decoration:none}.invdrive a:hover{text-decoration:underline}
+.invdel{margin-top:8px;font-size:11px;color:var(--ink-faint);background:none;border:1px solid var(--line);border-radius:5px;padding:3px 9px}
+.invdel:hover{border-color:var(--urgent);color:var(--urgent)}
+@media(max-width:920px){.fac-layout{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+<div class="app">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="wordmark"><span class="badge">GCG</span><span class="name">Despacho</span></div>
+    <nav class="nav" id="nav">
+      <button data-view="hoy" class="active">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+        Hoy <span class="count" id="c-hoy">0</span>
+      </button>
+      <button data-view="clientes">
+        <svg class="ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.5-3 2.8-4.5 5.5-4.5S14 16 14.5 19"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.6c2.3.2 3.9 1.6 4.3 4.4"/></svg>
+        Clientes <span class="count" id="c-cli">0</span>
+      </button>
+      <button data-view="tareas">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/><path d="M19 16l2 2-3 3"/></svg>
+        Tareas <span class="count" id="c-tar">0</span>
+      </button>
+      <button data-view="agenda">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>
+        Agenda <span class="count" id="c-age">0</span>
+      </button>
+      <button data-view="facturas">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z"/><path d="M9 8h6M9 12h6"/></svg>
+        Facturas <span class="count" id="c-fac">0</span>
+      </button>
+    </nav>
+    <div class="foot">
+      <div class="sync-state"><span class="dot" id="sync-dot"></span><span id="sync-txt">Solo en este dispositivo</span></div>
+      <button class="btn-ghost-light" id="open-config">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2-1.2l-.4-2.5h-4l-.4 2.5a7 7 0 0 0-2 1.2l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2 1.2l.4 2.5h4l.4-2.5a7 7 0 0 0 2-1.2l2.3 1 2-3.4-2-1.5A7 7 0 0 0 19 12Z"/></svg>
+        Conexión y datos
+      </button>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
 
-<div class="topbar">
-  <span class="title">Facturación</span>
-  <span class="sub">Gabriel Carreras Guixé · Abogado</span>
-  <div class="drive-status">
-    <span class="dot" id="drive-dot"></span>
-    <span id="drive-label">Conectando con Drive...</span>
-  </div>
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:14px">
+        <button class="menu-toggle" id="menu-toggle"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <div>
+          <div class="eyebrow" id="tb-eyebrow">Panel</div>
+          <h1 id="tb-title">Hoy</h1>
+        </div>
+      </div>
+      <button class="btn-primary" id="quick-add">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        <span id="quick-add-label">Nueva tarea</span>
+      </button>
+    </div>
+    <div class="content" id="content"></div>
+  </main>
 </div>
 
-<div class="layout">
-  <div class="form-col">
-
-    <!-- FACTURA -->
-    <div class="section">
-      <div class="section-title">Datos de la factura</div>
-      <div class="row two">
-        <div class="field">
-          <label>Número de factura</label>
-          <input type="text" id="f-num" readonly>
-        </div>
-        <div class="field">
-          <label>Fecha de emisión</label>
-          <input type="date" id="f-date">
-        </div>
-      </div>
-    </div>
-
-    <!-- CLIENTE -->
-    <div class="section">
-      <div class="section-title">Cliente</div>
-      <div class="row one">
-        <div class="field">
-          <label>Nombre / Razón Social *</label>
-          <input type="text" id="c-name" placeholder="Empieza a escribir para buscar clientes anteriores..." autocomplete="off" oninput="onNameInput()" onblur="hideAC()" onfocus="onNameInput()">
-          <div class="ac-list" id="ac-list" style="display:none;"></div>
-        </div>
-      </div>
-      <div class="row two">
-        <div class="field">
-          <label>NIF / CIF</label>
-          <input type="text" id="c-nif" placeholder="12345678A">
-        </div>
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="c-email" placeholder="cliente@email.com">
-        </div>
-      </div>
-      <div class="row one">
-        <div class="field">
-          <label>Dirección fiscal</label>
-          <input type="text" id="c-addr" placeholder="Calle, número, CP, ciudad">
-        </div>
-      </div>
-    </div>
-
-    <!-- IMPUESTOS -->
-    <div class="section">
-      <div class="section-title">Impuestos</div>
-      <div class="row two">
-        <div class="field">
-          <label>IVA (%)</label>
-          <div class="pct-wrapper">
-            <input type="number" id="f-iva" value="21" min="0" max="100" step="0.1" oninput="calcTotals()">
-            <span class="pct-badge">%</span>
-          </div>
-          <span class="tax-hint">0 = exento de IVA</span>
-        </div>
-        <div class="field">
-          <label>Retención IRPF (%)</label>
-          <div class="pct-wrapper">
-            <input type="number" id="f-irpf" value="15" min="0" max="100" step="0.1" oninput="calcTotals()">
-            <span class="pct-badge">%</span>
-          </div>
-          <span class="tax-hint">0 = sin retención (particulares)</span>
-        </div>
-      </div>
-      <!-- Presets rápidos -->
-      <div class="presets">
-        <span style="font-size:11px;color:#aaa;align-self:center;">Presets:</span>
-        <button class="preset-btn" onclick="setTaxes(21,15)">Autónomo estándar (21% IVA · 15% ret.)</button>
-        <button class="preset-btn" onclick="setTaxes(21,0)">Particular (21% IVA · sin ret.)</button>
-        <button class="preset-btn" onclick="setTaxes(21,7)">Ret. reducida (21% IVA · 7% ret.)</button>
-        <button class="preset-btn" onclick="setTaxes(0,0)">Exento (sin IVA · sin ret.)</button>
-      </div>
-    </div>
-
-    <!-- CONCEPTOS -->
-    <div class="section">
-      <div class="section-title">Conceptos</div>
-      <div class="lines-head">
-        <span>Descripción Servicio</span>
-        <span style="text-align:right">Cant.</span>
-        <span style="text-align:right">C/U</span>
-        <span style="text-align:right">Base</span>
-        <span></span>
-      </div>
-      <div id="lines-container"></div>
-      <button class="btn-add" onclick="addLine()">+ Añadir línea</button>
-
-      <div class="totals">
-        <div class="t-row"><span>Base Imponible</span><span id="t-base">0,00 €</span></div>
-        <div class="t-row" id="row-iva"><span id="lbl-iva">IVA 21%</span><span id="t-iva">0,00 €</span></div>
-        <div class="t-row" id="row-irpf"><span id="lbl-irpf" class="red">Retención 15%</span><span class="red" id="t-irpf">−0,00 €</span></div>
-        <div class="t-row"><span>Total</span><span id="t-total">0,00 €</span></div>
-      </div>
-    </div>
-
-    <!-- OBSERVACIONES -->
-    <div class="section">
-      <div class="section-title">Observaciones (opcional)</div>
-      <div class="field">
-        <textarea id="f-notes" placeholder="Condiciones de pago, número de expediente, etc."></textarea>
-      </div>
-    </div>
-
-    <button class="btn-gen" id="btn-gen" onclick="generateInvoice()">Generar y descargar factura PDF</button>
-  </div>
-
-  <!-- HISTORIAL -->
-  <div class="hist-col">
-    <h2>Historial <span id="yr-lbl" style="font-weight:400;font-size:12px;color:#888;"></span></h2>
-    <div class="stats" id="stats-box"></div>
-    <div id="hist-list"></div>
-  </div>
-</div>
-
-<div id="toast"></div>
+<!-- Overlays montados por JS -->
+<div class="overlay" id="overlay"></div>
+<div class="toast-wrap" id="toasts"></div>
 
 <script>
-const { jsPDF } = window.jspdf;
+/* =========================================================================
+   CONFIGURACIÓN
+   Tu Client ID de Google ya está puesto (el mismo de tu app de facturas).
+   Si lo despliegas en la URL de las facturas, no tienes que tocar nada.
+   ========================================================================= */
+const CONFIG = {
+  GOOGLE_CLIENT_ID: "422182341699-ff7j6b3s8o2c9bjthrfv0p7lj8smkvt7.apps.googleusercontent.com",
+  TITULAR: "Gabriel Carreras Guixé"
+};
+const SCOPE = "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar.events";
+const STORE_KEY = "despacho_gcg_v1";
+const TOKEN_KEY = "gcg_token";          // token de sesión compartido con facturas
+const DATA_SHEET_KEY = "gcg_despacho_sheet_id";
+const DATA_SHEET_NAME = "Despacho - Datos (GCG)";
 
-// ── CONFIG ────────────────────────────────────────────────────────────────────
+/* Datos del emisor para las facturas (tuyos) */
 const EMISOR = {
-  nombre: 'Gabriel Carreras Guixé',
-  nif:    '53296619F',
-  dir1:   'Avinguda del Puig de Rimila, 10, B2-4',
-  dir2:   '08173, Sant Cugat del Vallès, Barcelona',
-  email:  'g.carreras@icab.cat',
-  tel:    '683142264',
-  icab:   '48490',
-  iban:   'ES37 0182 1294 1502 0168 5255'
+  nombre:"Gabriel Carreras Guixé", nif:"53296619F",
+  dir1:"Avinguda del Puig de Rimila, 10, B2-4",
+  dir2:"08173, Sant Cugat del Vallès, Barcelona",
+  email:"g.carreras@icab.cat", tel:"683142264",
+  icab:"48490", iban:"ES37 0182 1294 1502 0168 5255"
 };
-
-const DRIVE = {
-  declaracionesId: '1pdDKNN8mD2v4GA1xkx6-10OpjwweNPRG',
-  knownFolders: { '2026-2T': '1ovf-vY1lGtyD6N2FkwbF7Q31FbyrpXXv' }
-};
+/* Carpeta de Drive donde se archivan los PDF y el Excel de contabilidad */
+const DRIVE = { declaracionesId:"1pdDKNN8mD2v4GA1xkx6-10OpjwweNPRG", knownFolders:{ "2026-2T":"1ovf-vY1lGtyD6N2FkwbF7Q31FbyrpXXv" } };
 
 const YEAR = new Date().getFullYear();
-const SK_INV = 'gcg_invoices_v3';
-const SK_CLI = 'gcg_clients_v1';
+const TABS = { clientes:"Clientes", tareas:"Tareas", agenda:"Agenda", facturas:"Facturas" };
+const HEADERS = {
+  clientes:["id","nombre","referencia","nif","direccionFiscal","email","telefono","estado","notas","ivaDefecto","irpfDefecto","creado"],
+  tareas:["id","clienteId","titulo","detalle","prioridad","estado","vencimiento","creado","completadoEn"],
+  agenda:["id","clienteId","titulo","tipo","fecha","hora","lugar","notas","gcalId"],
+  facturas:["seq","year","num","date","clienteId","clientName","clientNif","concepto","base","iva","irpf","ivaPct","irpfPct","total","driveUrl"]
+};
+const NUMFIELDS = { facturas:["seq","year","base","iva","irpf","ivaPct","irpfPct","total"] };
 
-function loadData(k) { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }
-function saveData(k, d) { localStorage.setItem(k, JSON.stringify(d)); }
+/* ===================== ESTADO ===================== */
+let state = { clientes:[], tareas:[], agenda:[], facturas:[] };
+let view = "hoy";
+let selectedCliente = null;
+let filters = { tareas:{ q:"", estado:"abiertas" } };
+let gAuth = { token:null, connected:false, email:"" };
+let _dataSheetId = localStorage.getItem(DATA_SHEET_KEY) || null;
+let syncTimer = null;
 
-let invoices = loadData(SK_INV);
-let clients  = loadData(SK_CLI);
+/* ===================== UTILIDADES ===================== */
+const $ = s => document.querySelector(s);
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const esc = s => (s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const todayISO = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+function parseISO(s){ if(!s) return null; const [y,m,d]=String(s).split("-").map(Number); return new Date(y,m-1,d); }
+function daysUntil(iso){ if(!iso) return null; const a=parseISO(todayISO()), b=parseISO(iso); return Math.round((b-a)/86400000); }
+function fmtDateLong(d){ return d.toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"}); }
+function fmtDateShort(iso){ const d=parseISO(iso); if(!d) return ""; return d.toLocaleDateString("es-ES",{day:"numeric",month:"short"}); }
+function dueClass(iso){ const n=daysUntil(iso); if(n===null) return null; if(n<0) return "urgent"; if(n<=2) return "soon"; return "normal"; }
+function dueLabel(iso){ const n=daysUntil(iso); if(n===null) return ""; if(n<0) return `Vencida · ${fmtDateShort(iso)}`; if(n===0) return "Hoy"; if(n===1) return "Mañana"; if(n<=6) return `En ${n} días`; return fmtDateShort(iso); }
+function initials(nm){ return (nm||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase(); }
+function clienteById(id){ return state.clientes.find(c=>c.id===id); }
+function clienteNombre(id){ const c=clienteById(id); return c?c.nombre:""; }
+function fmtN(n){ return (Number(n)||0).toFixed(2).replace(".",","); }
+function fmtMoney(n){ return fmtN(n)+" €"; }
 
-// ── IMPUESTOS ─────────────────────────────────────────────────────────────────
-function getIva()  { return Math.max(0, parseFloat(document.getElementById('f-iva').value)  || 0) / 100; }
-function getIrpf() { return Math.max(0, parseFloat(document.getElementById('f-irpf').value) || 0) / 100; }
+/* ===================== PERSISTENCIA LOCAL ===================== */
+function saveLocal(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
+function loadLocal(){ try{ const r=localStorage.getItem(STORE_KEY); if(r){ const d=JSON.parse(r); state={clientes:d.clientes||[],tareas:d.tareas||[],agenda:d.agenda||[],facturas:d.facturas||[]}; } }catch(e){} }
+function commit(){ saveLocal(); render(); scheduleSync(); }
 
-function setTaxes(iva, irpf) {
-  document.getElementById('f-iva').value  = iva;
-  document.getElementById('f-irpf').value = irpf;
-  calcTotals();
-}
+/* ===================== AUTENTICACIÓN GOOGLE (compartida) =====================
+   Mismo método que tu app de facturas: redirección OAuth, el token vuelve en
+   la URL y se guarda en la sesión. Un solo "Conectar" para datos y facturas. */
+function gReady(){ return !!CONFIG.GOOGLE_CLIENT_ID; }
 
-// ── NUMERACIÓN ────────────────────────────────────────────────────────────────
-function nextSeq() {
-  const yr = invoices.filter(i => i.year === YEAR);
-  if (!yr.length) return 18;
-  return Math.max(...yr.map(i => i.seq)) + 1;
-}
-function fmtNum(n) { return String(n).padStart(3, '0'); }
-
-// ── LÍNEAS ────────────────────────────────────────────────────────────────────
-let lines = [{ desc: '', qty: 1, price: '' }];
-
-function renderLines() {
-  const c = document.getElementById('lines-container');
-  c.innerHTML = '';
-  lines.forEach((l, i) => {
-    const amt = (parseFloat(l.qty)||0) * (parseFloat(l.price)||0);
-    const d = document.createElement('div');
-    d.className = 'line-row';
-    d.innerHTML = `
-      <input type="text" placeholder="Descripción del servicio" value="${esc(l.desc||'')}" oninput="lines[${i}].desc=this.value">
-      <input type="number" value="${l.qty}" min="0.01" step="0.01" oninput="lines[${i}].qty=parseFloat(this.value)||0;calcTotals();updAmt(${i})">
-      <input type="number" value="${l.price!==''?l.price:''}" min="0" step="0.01" placeholder="0,00" oninput="lines[${i}].price=parseFloat(this.value)||0;calcTotals();updAmt(${i})">
-      <div class="line-amt" id="la-${i}">${amt>0?fmtN(amt)+' €':'—'}</div>
-      <button class="btn-rm" onclick="removeLine(${i})">×</button>`;
-    c.appendChild(d);
-  });
-  calcTotals();
-}
-
-function updAmt(i) {
-  const a = (parseFloat(lines[i].qty)||0)*(parseFloat(lines[i].price)||0);
-  const el = document.getElementById('la-'+i);
-  if (el) el.textContent = a > 0 ? fmtN(a)+' €' : '—';
-}
-function addLine()      { lines.push({desc:'',qty:1,price:''}); renderLines(); }
-function removeLine(i)  { if (lines.length>1) { lines.splice(i,1); renderLines(); } }
-
-function calcTotals() {
-  const base  = lines.reduce((s,l)=>s+(parseFloat(l.qty)||0)*(parseFloat(l.price)||0), 0);
-  const ivaPct  = getIva();
-  const irpfPct = getIrpf();
-  const iva   = base * ivaPct;
-  const irpf  = base * irpfPct;
-  const total = base + iva - irpf;
-
-  document.getElementById('t-base').textContent  = fmtMoney(base);
-  document.getElementById('t-iva').textContent    = fmtMoney(iva);
-  document.getElementById('t-irpf').textContent   = '−'+fmtMoney(irpf);
-  document.getElementById('t-total').textContent  = fmtMoney(total);
-
-  // Etiquetas dinámicas
-  const ivaPctDisp  = parseFloat(document.getElementById('f-iva').value)  || 0;
-  const irpfPctDisp = parseFloat(document.getElementById('f-irpf').value) || 0;
-  document.getElementById('lbl-iva').textContent  = 'IVA ' + ivaPctDisp + '%';
-  document.getElementById('lbl-irpf').textContent = 'Retención ' + irpfPctDisp + '%';
-
-  // Ocultar filas si son 0
-  document.getElementById('row-iva').classList.toggle('hidden-row',  ivaPct  === 0);
-  document.getElementById('row-irpf').classList.toggle('hidden-row', irpfPct === 0);
-}
-
-// ── AUTOCOMPLETE ──────────────────────────────────────────────────────────────
-function onNameInput() {
-  const val = document.getElementById('c-name').value.trim().toLowerCase();
-  const list = document.getElementById('ac-list');
-  if (!val || !clients.length) { list.style.display='none'; return; }
-  const m = clients.filter(c => c.name.toLowerCase().includes(val));
-  if (!m.length) { list.style.display='none'; return; }
-  list.innerHTML = m.map(c => `
-    <div onmousedown="selectClient('${esc(c.name)}','${esc(c.nif||'')}','${esc(c.email||'')}','${esc(c.addr||'')}',${c.iva??21},${c.irpf??15})">
-      ${c.name}
-      <div class="ac-sub">${[c.nif, c.addr].filter(Boolean).join(' · ')}</div>
-    </div>`).join('');
-  list.style.display = 'block';
-}
-
-function selectClient(name, nif, email, addr, iva, irpf) {
-  document.getElementById('c-name').value  = name;
-  document.getElementById('c-nif').value   = nif;
-  document.getElementById('c-email').value = email;
-  document.getElementById('c-addr').value  = addr;
-  document.getElementById('f-iva').value   = iva;
-  document.getElementById('f-irpf').value  = irpf;
-  document.getElementById('ac-list').style.display = 'none';
-  calcTotals();
-}
-
-function hideAC() { setTimeout(() => document.getElementById('ac-list').style.display='none', 150); }
-
-function saveClient(name, nif, email, addr, iva, irpf) {
-  const idx = clients.findIndex(c => c.name.toLowerCase() === name.toLowerCase());
-  const o = { name, nif, email, addr, iva, irpf };
-  if (idx >= 0) clients[idx] = o; else clients.push(o);
-  saveData(SK_CLI, clients);
-}
-
-// ── DRIVE ─────────────────────────────────────────────────────────────────────
-let driveToken = null;
-let driveReady = false;
-const OAUTH_CLIENT_ID = '422182341699-ff7j6b3s8o2c9bjthrfv0p7lj8smkvt7.apps.googleusercontent.com';
-const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets';
-
-async function initDrive() {
-  try {
-    const stored = sessionStorage.getItem('gcg_drive_token');
-    if (stored) { driveToken = stored; await verifyToken(); return; }
-    setDriveStatus(false, 'Haz clic para conectar Drive');
-    document.getElementById('drive-label').style.cursor = 'pointer';
-    document.getElementById('drive-label').onclick = startDriveAuth;
-  } catch(e) { setDriveStatus(false, 'Drive no disponible'); }
-}
-
-function setDriveStatus(ok, msg) {
-  document.getElementById('drive-dot').className = 'dot ' + (ok ? 'ok' : 'err');
-  document.getElementById('drive-label').textContent = msg;
-  driveReady = ok;
-}
-
-async function verifyToken() {
-  const r = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
-    headers: { Authorization: 'Bearer ' + driveToken }
-  });
-  if (r.ok) {
-    const d = await r.json();
-    setDriveStatus(true, 'Drive: ' + (d.user?.emailAddress || 'conectado'));
-  } else {
-    sessionStorage.removeItem('gcg_drive_token');
-    driveToken = null;
-    setDriveStatus(false, 'Sesión expirada — haz clic para reconectar');
-    document.getElementById('drive-label').style.cursor = 'pointer';
-    document.getElementById('drive-label').onclick = startDriveAuth;
+function checkOAuthCallback(){
+  if(location.hash.includes("access_token")){
+    const p=new URLSearchParams(location.hash.substring(1));
+    const t=p.get("access_token");
+    if(t){ gAuth.token=t; sessionStorage.setItem(TOKEN_KEY,t); history.replaceState(null,"",location.pathname); }
   }
 }
-
-function startDriveAuth() {
-  const p = new URLSearchParams({ client_id: OAUTH_CLIENT_ID, redirect_uri: location.href.split('?')[0], response_type: 'token', scope: DRIVE_SCOPE, prompt: 'consent' });
-  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
+function connectGoogle(){
+  if(!gReady()){ toast("Falta el Client ID en el código","err"); return; }
+  const p=new URLSearchParams({ client_id:CONFIG.GOOGLE_CLIENT_ID, redirect_uri:location.href.split("#")[0].split("?")[0], response_type:"token", scope:SCOPE, prompt:"consent" });
+  location.href="https://accounts.google.com/o/oauth2/v2/auth?"+p;
 }
-
-function checkOAuthCallback() {
-  const hash = location.hash;
-  if (hash.includes('access_token')) {
-    const p = new URLSearchParams(hash.substring(1));
-    const t = p.get('access_token');
-    if (t) { driveToken = t; sessionStorage.setItem('gcg_drive_token', t); history.replaceState(null,'',location.pathname); verifyToken(); }
-  }
+async function initAuth(){
+  const stored=sessionStorage.getItem(TOKEN_KEY);
+  if(stored){ gAuth.token=stored; await verifyToken(); }
+  else setSync("ready");
 }
-
-function getQuarter(dateStr) {
-  const d = dateStr ? new Date(dateStr+'T12:00:00') : new Date();
-  const m = d.getMonth()+1, y = d.getFullYear();
-  const q = m<=3?1:m<=6?2:m<=9?3:4;
-  return { label: y+'-'+q+'T', year: y, q };
+async function verifyToken(){
+  try{
+    const r=await fetch("https://www.googleapis.com/drive/v3/about?fields=user",{headers:{Authorization:"Bearer "+gAuth.token}});
+    if(r.ok){ const d=await r.json(); gAuth.connected=true; gAuth.email=d.user?.emailAddress||""; setSync("ok"); pullData(true); }
+    else { sessionStorage.removeItem(TOKEN_KEY); gAuth.token=null; gAuth.connected=false; setSync("ready"); }
+  }catch(e){ setSync("error"); }
 }
-
-async function getOrCreateIngresosFolder(dateStr) {
-  const { label } = getQuarter(dateStr);
-  if (DRIVE.knownFolders[label]) return DRIVE.knownFolders[label];
-  let trimId = null;
-  const st = await driveReq(`https://www.googleapis.com/drive/v3/files?q=name='${label}' and mimeType='application/vnd.google-apps.folder' and '${DRIVE.declaracionesId}' in parents and trashed=false&fields=files(id)`);
-  if (st.files?.length) { trimId = st.files[0].id; }
-  else { const c = await driveReq('https://www.googleapis.com/drive/v3/files','POST',{name:label,mimeType:'application/vnd.google-apps.folder',parents:[DRIVE.declaracionesId]}); trimId = c.id; }
-  let ingId = null;
-  const si = await driveReq(`https://www.googleapis.com/drive/v3/files?q=name='INGRESOS' and mimeType='application/vnd.google-apps.folder' and '${trimId}' in parents and trashed=false&fields=files(id)`);
-  if (si.files?.length) { ingId = si.files[0].id; }
-  else { const c = await driveReq('https://www.googleapis.com/drive/v3/files','POST',{name:'INGRESOS',mimeType:'application/vnd.google-apps.folder',parents:[trimId]}); ingId = c.id; }
-  DRIVE.knownFolders[label] = ingId;
-  return ingId;
-}
-
-async function driveReq(url, method='GET', body=null) {
-  const opts = { method, headers: { Authorization: 'Bearer '+driveToken } };
-  if (body) { opts.headers['Content-Type']='application/json'; opts.body=JSON.stringify(body); }
-  const r = await fetch(url, opts);
-  if (!r.ok) throw new Error('Drive '+r.status);
+async function api(url, opts={}){
+  const r=await fetch(url,{ ...opts, headers:{ Authorization:"Bearer "+gAuth.token, "Content-Type":"application/json", ...(opts.headers||{}) } });
+  if(r.status===401){ gAuth.connected=false; sessionStorage.removeItem(TOKEN_KEY); setSync("ready"); throw new Error("401"); }
+  if(!r.ok) throw new Error("API "+r.status);
   return r.json();
 }
 
-async function uploadToDrive(pdfBytes, filename, dateStr) {
-  if (!driveReady || !driveToken) return null;
-  try {
-    const folderId = await getOrCreateIngresosFolder(dateStr);
-    const boundary = 'gcg_'+Date.now();
-    const meta = { name: filename, mimeType: 'application/pdf', parents: [folderId] };
-    const enc = new TextEncoder();
-    const p1 = enc.encode('--'+boundary+'\r\nContent-Type: application/json\r\n\r\n'+JSON.stringify(meta)+'\r\n');
-    const p2 = enc.encode('--'+boundary+'\r\nContent-Type: application/pdf\r\n\r\n');
-    const p3 = enc.encode('\r\n--'+boundary+'--');
-    const body = new Uint8Array(p1.length+p2.length+pdfBytes.length+p3.length);
-    body.set(p1,0); body.set(p2,p1.length); body.set(pdfBytes,p1.length+p2.length); body.set(p3,p1.length+p2.length+pdfBytes.length);
-    const r = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink', {
-      method:'POST', headers:{Authorization:'Bearer '+driveToken,'Content-Type':'multipart/related; boundary='+boundary}, body
+/* ===================== HOJA DE DATOS (se crea sola en Drive) ===================== */
+async function getOrCreateDataSheet(){
+  if(_dataSheetId) return _dataSheetId;
+  // buscar una hoja con ese nombre creada por la app
+  const q=encodeURIComponent(`name='${DATA_SHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+  const found=await api(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`);
+  if(found.files&&found.files.length){ _dataSheetId=found.files[0].id; }
+  else{
+    const created=await api("https://sheets.googleapis.com/v4/spreadsheets",{method:"POST",body:JSON.stringify({
+      properties:{title:DATA_SHEET_NAME},
+      sheets:Object.values(TABS).map(t=>({properties:{title:t}}))
+    })});
+    _dataSheetId=created.spreadsheetId;
+  }
+  localStorage.setItem(DATA_SHEET_KEY,_dataSheetId);
+  return _dataSheetId;
+}
+async function ensureTabs(sid){
+  const meta=await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}`);
+  const existing=(meta.sheets||[]).map(s=>s.properties.title);
+  const missing=Object.values(TABS).filter(t=>!existing.includes(t));
+  if(missing.length){
+    await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}:batchUpdate`,{method:"POST",body:JSON.stringify({
+      requests:missing.map(t=>({addSheet:{properties:{title:t}}}))
+    })});
+  }
+}
+function rowsFor(kind){ return [HEADERS[kind], ...state[kind].map(o=>HEADERS[kind].map(h=>o[h]==null?"":String(o[h])))]; }
+
+async function pushData(){
+  if(!gAuth.connected) return;
+  setSync("busy");
+  try{
+    const sid=await getOrCreateDataSheet(); await ensureTabs(sid);
+    for(const kind of Object.keys(TABS)){
+      await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(TABS[kind])}!A:Z:clear`,{method:"POST",body:"{}"});
+    }
+    await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchUpdate`,{method:"POST",body:JSON.stringify({
+      valueInputOption:"RAW",
+      data:Object.keys(TABS).map(kind=>({range:`${TABS[kind]}!A1`,values:rowsFor(kind)}))
+    })});
+    setSync("ok");
+  }catch(e){ console.error(e); setSync("error"); }
+}
+async function pullData(silent){
+  if(!gAuth.connected) return;
+  setSync("busy");
+  try{
+    const sid=await getOrCreateDataSheet(); await ensureTabs(sid);
+    const ranges=Object.values(TABS).map(t=>`ranges=${encodeURIComponent(t)}!A:Z`).join("&");
+    const res=await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchGet?${ranges}`);
+    const got={};
+    (res.valueRanges||[]).forEach(vr=>{
+      const tab=decodeURIComponent(vr.range.split("!")[0].replace(/'/g,""));
+      const kind=Object.keys(TABS).find(k=>TABS[k]===tab);
+      if(!kind) return;
+      const [head,...rows]=vr.values||[[]];
+      got[kind]=(rows||[]).filter(r=>r[0]!=null&&r[0]!=="").map(r=>{
+        const o={}; (head||HEADERS[kind]).forEach((h,i)=>o[h]=r[i]??"");
+        (NUMFIELDS[kind]||[]).forEach(f=>{ o[f]=Number(o[f])||0; });
+        return o;
+      });
     });
-    if (!r.ok) throw new Error('Upload '+r.status);
-    const res = await r.json();
-    return res.webViewLink || 'https://drive.google.com/file/d/'+res.id+'/view';
-  } catch(e) { console.error(e); return null; }
+    const hasRemote=Object.values(got).some(arr=>arr&&arr.length);
+    if(hasRemote){
+      Object.keys(TABS).forEach(k=>{ if(got[k]) state[k]=got[k]; });
+      saveLocal(); render();
+      if(!silent) toast("Datos cargados desde Google");
+    } else { await pushData(); }
+    setSync("ok");
+  }catch(e){ console.error(e); setSync("error"); if(!silent) toast("No se pudo cargar de Google","err"); }
+}
+function scheduleSync(){
+  if(!gAuth.connected) return;
+  clearTimeout(syncTimer); setSync("busy");
+  syncTimer=setTimeout(pushData,1500);
+}
+function setSync(s){
+  const dot=$("#sync-dot"), txt=$("#sync-txt"); dot.className="dot";
+  const map={
+    local:["","Solo en este dispositivo"],
+    ready:["","Conectar Google"],
+    busy:["busy","Sincronizando…"],
+    ok:["on", gAuth.email?("Google: "+gAuth.email):"Sincronizado con Google"],
+    error:["","Error de conexión"]
+  };
+  const [cls,label]=map[s]||map.local;
+  if(cls) dot.classList.add(cls);
+  txt.textContent=label;
 }
 
-// ── GENERAR FACTURA ───────────────────────────────────────────────────────────
-async function generateInvoice() {
-  const clientName = document.getElementById('c-name').value.trim();
-  if (!clientName) { toast('Indica el nombre del cliente'); return; }
-  if (!lines.some(l=>l.desc&&parseFloat(l.price)>0)) { toast('Añade al menos un concepto con importe'); return; }
+/* ===================== GOOGLE CALENDAR ===================== */
+const CAL_TZ = "Europe/Madrid";
+const CAL_BASE = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+function pad2(n){ return String(n).padStart(2,"0"); }
+function localRFC(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate())+"T"+pad2(d.getHours())+":"+pad2(d.getMinutes())+":00"; }
+function nextDayISO(iso){ const d=parseISO(iso); d.setDate(d.getDate()+1); return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+function calTimes(ev){
+  if(ev.hora){
+    const startD=new Date(`${ev.fecha}T${ev.hora}:00`);
+    const endD=new Date(startD.getTime()+60*60*1000);
+    return { start:{dateTime:`${ev.fecha}T${ev.hora}:00`,timeZone:CAL_TZ}, end:{dateTime:localRFC(endD),timeZone:CAL_TZ} };
+  }
+  return { start:{date:ev.fecha}, end:{date:nextDayISO(ev.fecha)} };  // evento de día completo (plazos)
+}
+function calBody(ev){
+  const cli=clienteById(ev.clienteId);
+  const summary=(ev.tipo&&ev.tipo!=="Otro"?`[${ev.tipo}] `:"")+ev.titulo;
+  const descParts=[]; if(cli) descParts.push("Cliente: "+cli.nombre+(cli.referencia?` (${cli.referencia})`:"")); if(ev.notas) descParts.push(ev.notas);
+  return { summary, location:ev.lugar||"", description:descParts.join("\n"), ...calTimes(ev) };
+}
+async function upsertCalendarEvent(ev){
+  if(!gAuth.connected) return;
+  try{
+    if(ev.gcalId){
+      await api(`${CAL_BASE}/${encodeURIComponent(ev.gcalId)}`,{method:"PATCH",body:JSON.stringify(calBody(ev))});
+    }else{
+      const r=await api(CAL_BASE,{method:"POST",body:JSON.stringify(calBody(ev))});
+      ev.gcalId=r.id; saveLocal();
+    }
+  }catch(e){ console.error("Calendar:",e); toast("Guardado, pero no se pudo sincronizar con Calendar","err"); }
+}
+async function deleteCalendarEvent(gcalId){
+  if(!gAuth.connected||!gcalId) return;
+  try{ await fetch(`${CAL_BASE}/${encodeURIComponent(gcalId)}`,{method:"DELETE",headers:{Authorization:"Bearer "+gAuth.token}}); }
+  catch(e){ console.error("Calendar del:",e); }
+}
+async function importCalendar(){
+  if(!gAuth.connected){ toast("Conecta Google primero","err"); return; }
+  setSync("busy");
+  try{
+    const now=new Date(), max=new Date(now.getTime()+90*86400000);
+    const url=`${CAL_BASE}?timeMin=${encodeURIComponent(now.toISOString())}&timeMax=${encodeURIComponent(max.toISOString())}&singleEvents=true&orderBy=startTime&maxResults=250`;
+    const res=await api(url);
+    let added=0;
+    (res.items||[]).forEach(it=>{
+      if(it.status==="cancelled"||!it.id) return;
+      if(state.agenda.some(a=>a.gcalId===it.id)) return;
+      const start=it.start||{};
+      const fecha=(start.dateTime||start.date||"").slice(0,10);
+      const hora=start.dateTime?start.dateTime.slice(11,16):"";
+      if(!fecha) return;
+      state.agenda.push({ id:uid(), clienteId:"", titulo:it.summary||"(sin título)", tipo:"Otro", fecha, hora, lugar:it.location||"", notas:it.description||"", gcalId:it.id });
+      added++;
+    });
+    if(added){ commit(); toast(`${added} cita(s) importada(s) de Calendar`); }
+    else { setSync("ok"); toast("No hay citas nuevas que importar"); }
+  }catch(e){ console.error(e); setSync("error"); toast("No se pudo leer Google Calendar","err"); }
+}
 
-  const btn = document.getElementById('btn-gen');
-  btn.disabled = true; btn.textContent = 'Generando...';
+/* ===================== RENDER ===================== */
+function render(){
+  renderCounts();
+  if(view==="hoy") renderHoy();
+  else if(view==="clientes") renderClientes();
+  else if(view==="tareas") renderTareas();
+  else if(view==="agenda") renderAgenda();
+  else if(view==="facturas") renderFacturas();
+  // estado botón rápido
+  const labels={hoy:"Nueva tarea",clientes:"Nuevo cliente",tareas:"Nueva tarea",agenda:"Nuevo evento",facturas:"Nueva tarea"};
+  $("#quick-add-label").textContent=labels[view];
+  $("#quick-add").style.display = view==="facturas" ? "none" : "";
+  const eyebrows={hoy:"Panel",clientes:"Cartera",tareas:"Pendientes",agenda:"Calendario",facturas:"Facturación"};
+  const titles={hoy:"Hoy",clientes:"Clientes",tareas:"Tareas",agenda:"Agenda",facturas:"Facturas"};
+  $("#tb-eyebrow").textContent=eyebrows[view];
+  if(view==="hoy"){
+    const d=new Date();
+    $("#tb-title").innerHTML=`Hoy, <span class="date-day">${fmtDateLong(d)}</span>`;
+  } else $("#tb-title").textContent=titles[view];
+}
+function renderCounts(){
+  const abiertas = state.tareas.filter(t=>t.estado!=="hecha");
+  const hoyCount = abiertas.filter(t=>t.vencimiento && daysUntil(t.vencimiento)<=0).length
+    + state.agenda.filter(a=>a.fecha===todayISO()).length;
+  $("#c-hoy").textContent=hoyCount;
+  $("#c-cli").textContent=state.clientes.length;
+  $("#c-tar").textContent=abiertas.length;
+  $("#c-age").textContent=state.agenda.filter(a=>a.fecha>=todayISO()).length;
+  $("#c-fac").textContent=state.facturas.filter(f=>Number(f.year)===YEAR).length;
+}
 
-  const seq     = nextSeq();
-  const num     = fmtNum(seq);
-  const dateVal = document.getElementById('f-date').value;
-  const dateFmt = dateVal ? new Date(dateVal+'T12:00:00').toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'}) : '';
-  const cNif    = document.getElementById('c-nif').value.trim();
-  const cEmail  = document.getElementById('c-email').value.trim();
-  const cAddr   = document.getElementById('c-addr').value.trim();
-  const notes   = document.getElementById('f-notes').value.trim();
-  const ivaPct  = getIva();
-  const irpfPct = getIrpf();
-  const ivaPctDisp  = parseFloat(document.getElementById('f-iva').value)  || 0;
-  const irpfPctDisp = parseFloat(document.getElementById('f-irpf').value) || 0;
+/* ---------- HOY ---------- */
+function renderHoy(){
+  const abiertas = state.tareas.filter(t=>t.estado!=="hecha");
+  const vencidas = abiertas.filter(t=>t.vencimiento && daysUntil(t.vencimiento)<0)
+    .sort((a,b)=>a.vencimiento.localeCompare(b.vencimiento));
+  const paraHoy = abiertas.filter(t=>t.vencimiento && daysUntil(t.vencimiento)===0);
+  const proximas = abiertas.filter(t=>t.vencimiento && daysUntil(t.vencimiento)>0 && daysUntil(t.vencimiento)<=7)
+    .sort((a,b)=>a.vencimiento.localeCompare(b.vencimiento));
+  const agendaHoy = state.agenda.filter(a=>a.fecha===todayISO()).sort((a,b)=>(a.hora||"").localeCompare(b.hora||""));
+  const agendaProx = state.agenda.filter(a=>a.fecha>todayISO() && daysUntil(a.fecha)<=7)
+    .sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
 
-  const base  = lines.reduce((s,l)=>s+(parseFloat(l.qty)||0)*(parseFloat(l.price)||0), 0);
-  const iva   = base * ivaPct;
-  const irpf  = base * irpfPct;
-  const total = base + iva - irpf;
+  const sinPlazo = abiertas.filter(t=>!t.vencimiento).length;
 
-  // ── PDF ───────────────────────────────────────────────────────────────────────
-  const doc = new jsPDF({unit:'mm',format:'a4'});
-  const PW=210, L=22, R=188, CW=R-L;
-  const RH=10; // row height
-  let y=26;
+  $("#content").innerHTML = `
+    <div class="summary">
+      <div class="cell"><div class="k">Clientes</div><div class="v">${state.clientes.length}</div></div>
+      <div class="cell"><div class="k">Tareas abiertas</div><div class="v">${abiertas.length}</div></div>
+      <div class="cell"><div class="k">Vencidas</div><div class="v ${vencidas.length?'alert':''}">${vencidas.length}</div></div>
+      <div class="cell"><div class="k">Esta semana</div><div class="v ${(paraHoy.length+proximas.length)?'warn':''}">${paraHoy.length+proximas.length+agendaHoy.length+agendaProx.length}</div></div>
+    </div>
+    <div class="panel-grid">
+      <div class="col-stack">
+        ${block("Vencidas","r-urgent", vencidas.length?`<span class="tag r-urgent">${vencidas.length}</span>`:"",
+          vencidas.length ? vencidas.map(taskRow).join("") : emptyMsg("Sin vencidos","Nada se te ha pasado."))}
+        ${block("Para hoy","r-soon", paraHoy.length?`<span class="tag r-soon">${paraHoy.length}</span>`:"",
+          paraHoy.length ? paraHoy.map(taskRow).join("") : emptyMsg("Día despejado","Ninguna tarea vence hoy."))}
+      </div>
+      <div class="col-stack">
+        ${block("Agenda de hoy","r-brand","",
+          agendaHoy.length ? agendaHoy.map(eventRow).join("") : emptyMsg("Sin citas","No tienes nada agendado hoy."))}
+        ${block("Próximos 7 días","r-brand", "",
+          (proximas.length||agendaProx.length)
+            ? [...agendaProx.map(eventRow), ...proximas.map(taskRow)].join("")
+            : emptyMsg("Semana tranquila","Sin plazos ni citas próximas."))}
+        ${sinPlazo ? `<div class="block"><div class="body"><div class="row" style="cursor:pointer" onclick="go('tareas')"><div class="main-txt"><div class="title" style="color:var(--ink-soft)">${sinPlazo} tarea(s) sin fecha de vencimiento</div><div class="meta">Ábrelas para asignarles un plazo →</div></div></div></div></div>`:""}
+      </div>
+    </div>`;
+}
+function block(label,rail,tag,inner){
+  return `<div class="block"><header><span class="rail ${rail}"></span><span class="label">${label}</span>${tag}</header><div class="body">${inner}</div></div>`;
+}
+function emptyMsg(t,s){ return `<div class="empty"><span class="serif">${t}</span>${s}</div>`; }
 
-  // Cabecera
-  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(20,20,20);
-  doc.text(EMISOR.nombre, L, y);
-  doc.setFont('helvetica','bold'); doc.setFontSize(14);
-  doc.text('FACTURA N\u00BA: '+seq, R, y, {align:'right'});
-  y+=6;
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
-  doc.text(EMISOR.nif, L, y);
-  doc.text('Fecha: '+dateFmt, R, y, {align:'right'});
-  y+=5; doc.text(EMISOR.dir1, L, y);
-  y+=5; doc.text(EMISOR.dir2, L, y);
-  y+=5; doc.text(EMISOR.email, L, y);
-  y+=5; doc.text(EMISOR.tel, L, y);
+function taskRow(t){
+  const dc=dueClass(t.vencimiento), c=clienteById(t.clienteId);
+  return `<div class="row ${t.estado==='hecha'?'is-done':''}">
+    <div class="pri ${t.prioridad||'baja'}"></div>
+    <div class="check ${t.estado==='hecha'?'done':''}" onclick="toggleTask('${t.id}')"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+    <div class="main-txt" onclick="editTask('${t.id}')" style="cursor:pointer">
+      <div class="title">${esc(t.titulo)}</div>
+      <div class="meta">
+        ${c?`<span class="cli">${esc(c.nombre)}</span>`:""}
+        ${c&&c.referencia?`<span class="ref">${esc(c.referencia)}</span>`:""}
+        ${t.vencimiento?`<span class="due ${dc}">${dueLabel(t.vencimiento)}</span>`:""}
+      </div>
+    </div>
+    <div class="acts"><button class="icon-btn" onclick="event.stopPropagation();editTask('${t.id}')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-3-3L5 17v3z"/></svg></button></div>
+  </div>`;
+}
+function eventRow(a){
+  const c=clienteById(a.clienteId);
+  const tipo=(a.tipo||"otro").toLowerCase();
+  return `<div class="row" onclick="editEvento('${a.id}')" style="cursor:pointer">
+    ${a.hora?`<span class="time-chip">${esc(a.hora)}</span>`:`<span class="time-chip" style="background:var(--surface-2);color:var(--ink-faint)">${fmtDateShort(a.fecha)}</span>`}
+    <div class="main-txt">
+      <div class="title">${esc(a.titulo)}${a.gcalId?` <svg title="En tu Google Calendar" viewBox="0 0 24 24" style="width:13px;height:13px;stroke:var(--ok);fill:none;stroke-width:2;vertical-align:-1px;margin-left:3px"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4M9 14l2 2 4-4"/></svg>`:""}</div>
+      <div class="meta">
+        <span class="type-pill type-${tipo}">${esc(a.tipo||'Otro')}</span>
+        ${c?`<span class="cli">${esc(c.nombre)}</span>`:""}
+        ${a.lugar?`<span>· ${esc(a.lugar)}</span>`:""}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------- CLIENTES ---------- */
+function renderClientes(){
+  if(state.clientes.length && !selectedCliente) selectedCliente = state.clientes[0].id;
+  const q=($("#cli-q")?$("#cli-q").value:"").toLowerCase();
+  const list = state.clientes
+    .filter(c=>!q || (c.nombre+" "+(c.referencia||"")).toLowerCase().includes(q))
+    .sort((a,b)=>a.nombre.localeCompare(b.nombre));
+  const c = clienteById(selectedCliente);
+
+  $("#content").innerHTML = `
+  <div class="cli-layout">
+    <div class="cli-list">
+      <div class="cli-search"><input id="cli-q" placeholder="Buscar cliente o referencia…" value="${esc(q)}" oninput="renderClientes()"></div>
+      <div id="cli-items">
+        ${list.length? list.map(cl=>{
+          const ab=state.tareas.filter(t=>t.clienteId===cl.id && t.estado!=='hecha' && t.vencimiento && daysUntil(t.vencimiento)<0).length;
+          return `<div class="cli-item ${cl.id===selectedCliente?'sel':''}" onclick="selectCliente('${cl.id}')">
+            <div class="avatar">${initials(cl.nombre)}</div>
+            <div style="min-width:0"><div class="nm">${esc(cl.nombre)}</div>${cl.referencia?`<div class="rf">${esc(cl.referencia)}</div>`:""}</div>
+            ${ab?`<span class="badge-n">${ab}</span>`:""}
+          </div>`;}).join("")
+        : `<div class="empty"><span class="serif">Sin clientes</span>Crea el primero con “Nuevo cliente”.</div>`}
+      </div>
+    </div>
+    <div class="cli-detail" id="cli-detail">${c?clienteDetail(c):`<div class="empty" style="padding:80px 20px"><span class="serif">Selecciona un cliente</span>O crea uno nuevo para empezar.</div>`}</div>
+  </div>`;
+}
+function clienteDetail(c){
+  const tareas = state.tareas.filter(t=>t.clienteId===c.id).sort((a,b)=>{
+    if(a.estado==='hecha'!==(b.estado==='hecha')) return a.estado==='hecha'?1:-1;
+    return (a.vencimiento||"9999").localeCompare(b.vencimiento||"9999");
+  });
+  const eventos = state.agenda.filter(e=>e.clienteId===c.id).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+  return `
+    <div class="head">
+      <div class="avatar">${initials(c.nombre)}</div>
+      <div style="min-width:0">
+        <h2>${esc(c.nombre)}</h2>
+        <div class="sub">
+          ${c.referencia?`<span class="ref-tag">${esc(c.referencia)}</span>`:""}
+          ${c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:""}
+          ${c.telefono?`<a href="tel:${esc(c.telefono)}">${esc(c.telefono)}</a>`:""}
+          ${c.estado?`<span>· ${esc(c.estado)}</span>`:""}
+        </div>
+      </div>
+      <div class="hacts">
+        <button class="icon-btn" title="Editar" onclick="editCliente('${c.id}')"><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-3-3L5 17v3z"/></svg></button>
+      </div>
+    </div>
+    ${c.notas?`<div class="notes-box">${esc(c.notas)}</div>`:""}
+    <div class="section-head"><span class="label">Pendientes</span><button class="add" onclick="newTask('${c.id}')"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Añadir</button></div>
+    <div class="listwrap">${tareas.length?tareas.map(taskRow).join(""):`<div class="empty" style="padding:14px">Sin tareas para este cliente.</div>`}</div>
+    <div class="section-head"><span class="label">Agenda</span><button class="add" onclick="newEvento('${c.id}')"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Añadir</button></div>
+    <div class="listwrap">${eventos.length?eventos.map(eventRow).join(""):`<div class="empty" style="padding:14px">Sin citas ni plazos.</div>`}</div>
+    <div style="height:14px"></div>`;
+}
+
+/* ---------- TAREAS ---------- */
+function renderTareas(){
+  const f=filters.tareas;
+  let rows=[...state.tareas];
+  if(f.estado==="abiertas") rows=rows.filter(t=>t.estado!=="hecha");
+  else if(f.estado==="hechas") rows=rows.filter(t=>t.estado==="hecha");
+  if(f.q){ const q=f.q.toLowerCase(); rows=rows.filter(t=>(t.titulo+" "+clienteNombre(t.clienteId)).toLowerCase().includes(q)); }
+  rows.sort((a,b)=>(a.vencimiento||"9999").localeCompare(b.vencimiento||"9999"));
+
+  $("#content").innerHTML=`
+    <div class="toolbar">
+      <input type="text" id="tar-q" placeholder="Buscar tarea o cliente…" value="${esc(f.q)}" oninput="filters.tareas.q=this.value;renderTareasRows()">
+      <div class="seg">
+        <button class="${f.estado==='abiertas'?'on':''}" onclick="setTarFilter('abiertas')">Abiertas</button>
+        <button class="${f.estado==='hechas'?'on':''}" onclick="setTarFilter('hechas')">Hechas</button>
+        <button class="${f.estado==='todas'?'on':''}" onclick="setTarFilter('todas')">Todas</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th style="width:34px"></th><th>Tarea</th><th>Cliente</th><th>Prioridad</th><th>Vencimiento</th><th></th></tr></thead>
+        <tbody id="tar-body"></tbody>
+      </table>
+    </div>`;
+  renderTareasRows();
+}
+function renderTareasRows(){
+  const f=filters.tareas;
+  let rows=[...state.tareas];
+  if(f.estado==="abiertas") rows=rows.filter(t=>t.estado!=="hecha");
+  else if(f.estado==="hechas") rows=rows.filter(t=>t.estado==="hecha");
+  if(f.q){ const q=f.q.toLowerCase(); rows=rows.filter(t=>(t.titulo+" "+clienteNombre(t.clienteId)).toLowerCase().includes(q)); }
+  rows.sort((a,b)=>(a.vencimiento||"9999").localeCompare(b.vencimiento||"9999"));
+  const body=$("#tar-body");
+  if(!rows.length){ body.innerHTML=`<tr><td colspan="6"><div class="empty" style="padding:30px"><span class="serif">Sin tareas</span>Crea una con “Nueva tarea”.</div></td></tr>`; return; }
+  body.innerHTML=rows.map(t=>{
+    const dc=dueClass(t.vencimiento);
+    return `<tr class="${t.estado==='hecha'?'done':''}">
+      <td><div class="check ${t.estado==='hecha'?'done':''}" onclick="toggleTask('${t.id}')"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div></td>
+      <td><span class="tt">${esc(t.titulo)}</span></td>
+      <td>${t.clienteId?`<span class="cli-chip">${esc(clienteNombre(t.clienteId))}</span>`:`<span style="color:var(--ink-faint)">—</span>`}</td>
+      <td><span class="type-pill" style="background:${t.prioridad==='alta'?'var(--urgent-tint)':t.prioridad==='media'?'var(--soon-tint)':'var(--surface-2)'};color:${t.prioridad==='alta'?'var(--urgent)':t.prioridad==='media'?'var(--soon)':'var(--ink-soft)'}">${esc(t.prioridad||'baja')}</span></td>
+      <td>${t.vencimiento?`<span class="due ${dc}">${dueLabel(t.vencimiento)}</span>`:`<span style="color:var(--ink-faint)">Sin fecha</span>`}</td>
+      <td><div class="acts"><button class="icon-btn" onclick="editTask('${t.id}')"><svg viewBox="0 0 24 24"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-3-3L5 17v3z"/></svg></button></div></td>
+    </tr>`;
+  }).join("");
+}
+function setTarFilter(v){ filters.tareas.estado=v; renderTareas(); }
+
+/* ---------- AGENDA ---------- */
+function renderAgenda(){
+  const futuros = state.agenda.filter(a=>a.fecha>=todayISO()).sort((a,b)=>(a.fecha+(a.hora||"")).localeCompare(b.fecha+(b.hora||"")));
+  const pasados = state.agenda.filter(a=>a.fecha<todayISO()).sort((a,b)=>(b.fecha+(b.hora||"")).localeCompare(a.fecha+(a.hora||"")));
+  // agrupar futuros por fecha
+  const groups={};
+  futuros.forEach(a=>{ (groups[a.fecha]=groups[a.fecha]||[]).push(a); });
+  const dayBlocks = Object.keys(groups).sort().map(date=>{
+    const d=parseISO(date); const n=daysUntil(date);
+    const rel = n===0?"Hoy":n===1?"Mañana":fmtDateLong(d);
+    return `<div class="block" style="margin-bottom:16px">
+      <header><span class="rail r-brand"></span><span class="label">${rel}</span><span class="tag">${fmtDateShort(date)}</span></header>
+      <div class="body">${groups[date].map(eventRow).join("")}</div>
+    </div>`;
+  }).join("");
+  $("#content").innerHTML=`
+    <div class="toolbar" style="justify-content:flex-end;margin-bottom:14px">
+      <button class="seg" style="display:inline-flex" onclick="importCalendar()"><span style="padding:8px 13px;display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:500;color:var(--ink-soft)"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M12 12v5M9.5 14.5h5"/></svg>Importar de Google Calendar</span></button>
+    </div>
+    ${futuros.length?dayBlocks:`<div class="block"><div class="body">${emptyMsg("Agenda vacía","Añade vistas, plazos o reuniones con “Nuevo evento”, o impórtalas de tu Google Calendar.")}</div></div>`}
+    ${pasados.length?`<div class="section-head" style="padding-left:0;margin-top:18px"><span class="label">Pasados</span></div>
+      <div class="block"><div class="body">${pasados.slice(0,15).map(eventRow).join("")}</div></div>`:""}`;
+}
+
+/* ===================== FACTURAS ===================== */
+let facLines=[{desc:"",qty:1,price:""}];
+let facSel=null;          // id del cliente seleccionado, o null si es nuevo
+let _contaSheetId=null;   // cache del Excel de contabilidad en Drive
+
+function nextSeq(){
+  const yr=state.facturas.filter(i=>Number(i.year)===YEAR);
+  if(!yr.length) return 21;
+  return Math.max(...yr.map(i=>Number(i.seq)))+1;
+}
+function fmtNum(n){ return String(n).padStart(3,"0"); }
+
+function renderFacturas(){
+  if(!document.getElementById("fac-form-mounted")){
+    $("#content").innerHTML=`
+    <div class="fac-layout">
+      <div class="fac-form" id="fac-form-mounted">
+        <div class="fac-sec">
+          <div class="sec-t">Datos de la factura</div>
+          <div class="frow two">
+            <div class="ffield"><label>Número</label><input id="fac-num" readonly></div>
+            <div class="ffield"><label>Fecha de emisión</label><input id="fac-date" type="date"></div>
+          </div>
+        </div>
+        <div class="fac-sec">
+          <div class="sec-t">Cliente</div>
+          <div class="frow one">
+            <div class="ffield">
+              <label>Nombre / razón social *</label>
+              <input id="fac-name" placeholder="Escribe para buscar en tu cartera…" autocomplete="off" oninput="facNameInput()" onblur="hideFacAC()" onfocus="facNameInput()">
+              <div class="ac" id="fac-ac" style="display:none"></div>
+            </div>
+          </div>
+          <div class="frow two">
+            <div class="ffield"><label>NIF / CIF</label><input id="fac-nif" placeholder="12345678A"></div>
+            <div class="ffield"><label>Email</label><input id="fac-email" type="email" placeholder="cliente@correo.com"></div>
+          </div>
+          <div class="frow one"><div class="ffield"><label>Dirección fiscal</label><input id="fac-addr" placeholder="Calle, nº, CP, ciudad"></div></div>
+        </div>
+        <div class="fac-sec">
+          <div class="sec-t">Impuestos</div>
+          <div class="frow two">
+            <div class="ffield"><label>IVA</label><div class="pctwrap"><input id="fac-iva" type="number" value="21" min="0" max="100" step="0.1" oninput="calcFacTotals()"><span class="pctbadge">%</span></div><span class="hint">0 = exento</span></div>
+            <div class="ffield"><label>Retención IRPF</label><div class="pctwrap"><input id="fac-irpf" type="number" value="15" min="0" max="100" step="0.1" oninput="calcFacTotals()"><span class="pctbadge">%</span></div><span class="hint">0 = sin retención</span></div>
+          </div>
+          <div class="presets">
+            <span class="pl">Presets:</span>
+            <button class="preset" onclick="setFacTaxes(21,15)">Autónomo (21·15)</button>
+            <button class="preset" onclick="setFacTaxes(21,0)">Particular (21·0)</button>
+            <button class="preset" onclick="setFacTaxes(21,7)">Ret. reducida (21·7)</button>
+            <button class="preset" onclick="setFacTaxes(0,0)">Exento</button>
+          </div>
+        </div>
+        <div class="fac-sec">
+          <div class="sec-t">Conceptos</div>
+          <div class="lines-h"><span>Descripción del servicio</span><span style="text-align:right">Cant.</span><span style="text-align:right">C/U</span><span style="text-align:right">Base</span><span></span></div>
+          <div id="fac-lines"></div>
+          <button class="laddline" onclick="addFacLine()">+ Añadir concepto</button>
+          <div class="ftotals">
+            <div class="ftrow"><span>Base imponible</span><span id="ft-base">0,00 €</span></div>
+            <div class="ftrow" id="ft-row-iva"><span id="ft-lbl-iva">IVA 21%</span><span id="ft-iva">0,00 €</span></div>
+            <div class="ftrow" id="ft-row-irpf"><span id="ft-lbl-irpf">Retención 15%</span><span class="red" id="ft-irpf">0,00 €</span></div>
+            <div class="ftrow grand"><span>Total</span><span id="ft-total">0,00 €</span></div>
+          </div>
+        </div>
+        <div class="fac-sec">
+          <div class="sec-t">Observaciones</div>
+          <div class="ffield"><textarea id="fac-notes" placeholder="Texto opcional que aparece al pie de la factura…"></textarea></div>
+        </div>
+        <button class="fgen" id="fac-gen" onclick="generateInvoice()">Generar y descargar factura PDF</button>
+      </div>
+      <div class="fhist">
+        <div class="fstats" id="fac-stats"></div>
+        <div id="fac-hist"></div>
+      </div>
+    </div>`;
+    mountFacForm();
+  }
+  renderFacStats(); renderFacHist();
+}
+function mountFacForm(){
+  $("#fac-date").value=todayISO();
+  $("#fac-num").value=fmtNum(nextSeq());
+  // restaurar selección de cliente si la había
+  if(facSel){ const c=clienteById(facSel); if(c){ $("#fac-name").value=c.nombre; $("#fac-nif").value=c.nif||""; $("#fac-email").value=c.email||""; $("#fac-addr").value=c.direccionFiscal||""; $("#fac-iva").value=c.ivaDefecto??21; $("#fac-irpf").value=c.irpfDefecto??15; } }
+  renderFacLines();
+}
+
+/* ---- conceptos ---- */
+function renderFacLines(){
+  const c=$("#fac-lines"); if(!c) return; c.innerHTML="";
+  facLines.forEach((l,i)=>{
+    const amt=(parseFloat(l.qty)||0)*(parseFloat(l.price)||0);
+    const d=document.createElement("div"); d.className="lrow";
+    d.innerHTML=`
+      <input type="text" placeholder="Descripción" value="${esc(l.desc||'')}" oninput="facLines[${i}].desc=this.value">
+      <input type="number" value="${l.qty}" min="0.01" step="0.01" oninput="facLines[${i}].qty=parseFloat(this.value)||0;calcFacTotals();updFacAmt(${i})">
+      <input type="number" value="${l.price!==''?l.price:''}" min="0" step="0.01" placeholder="0,00" oninput="facLines[${i}].price=parseFloat(this.value)||0;calcFacTotals();updFacAmt(${i})">
+      <div class="lamt" id="fla-${i}">${amt>0?fmtN(amt)+' €':'—'}</div>
+      <button class="lrm" onclick="removeFacLine(${i})">×</button>`;
+    c.appendChild(d);
+  });
+  calcFacTotals();
+}
+function updFacAmt(i){ const a=(parseFloat(facLines[i].qty)||0)*(parseFloat(facLines[i].price)||0); const el=$("#fla-"+i); if(el) el.textContent=a>0?fmtN(a)+" €":"—"; }
+function addFacLine(){ facLines.push({desc:"",qty:1,price:""}); renderFacLines(); }
+function removeFacLine(i){ if(facLines.length>1){ facLines.splice(i,1); renderFacLines(); } }
+function getIva(){ return Math.max(0,parseFloat($("#fac-iva").value)||0)/100; }
+function getIrpf(){ return Math.max(0,parseFloat($("#fac-irpf").value)||0)/100; }
+function setFacTaxes(iva,irpf){ $("#fac-iva").value=iva; $("#fac-irpf").value=irpf; calcFacTotals(); }
+function calcFacTotals(){
+  const base=facLines.reduce((s,l)=>s+(parseFloat(l.qty)||0)*(parseFloat(l.price)||0),0);
+  const ivaPct=getIva(), irpfPct=getIrpf();
+  $("#ft-base").textContent=fmtMoney(base);
+  $("#ft-iva").textContent=fmtMoney(base*ivaPct);
+  $("#ft-irpf").textContent="−"+fmtMoney(base*irpfPct);
+  $("#ft-total").textContent=fmtMoney(base+base*ivaPct-base*irpfPct);
+  const ivaD=parseFloat($("#fac-iva").value)||0, irpfD=parseFloat($("#fac-irpf").value)||0;
+  $("#ft-lbl-iva").textContent="IVA "+ivaD+"%";
+  $("#ft-lbl-irpf").textContent="Retención "+irpfD+"%";
+  $("#ft-row-iva").classList.toggle("hide",ivaPct===0);
+  $("#ft-row-irpf").classList.toggle("hide",irpfPct===0);
+}
+
+/* ---- autocomplete de cliente ---- */
+function facNameInput(){
+  const val=$("#fac-name").value.trim().toLowerCase(); const list=$("#fac-ac");
+  facSel=null;
+  if(!val||!state.clientes.length){ list.style.display="none"; return; }
+  const m=state.clientes.filter(c=>c.nombre.toLowerCase().includes(val));
+  if(!m.length){ list.style.display="none"; return; }
+  list.innerHTML=m.map(c=>`<div onmousedown="selectFacCliente('${c.id}')">${esc(c.nombre)}<div class="acs">${esc([c.nif,c.referencia].filter(Boolean).join(' · '))}</div></div>`).join("");
+  list.style.display="block";
+}
+function selectFacCliente(id){
+  const c=clienteById(id); if(!c) return; facSel=id;
+  $("#fac-name").value=c.nombre; $("#fac-nif").value=c.nif||""; $("#fac-email").value=c.email||""; $("#fac-addr").value=c.direccionFiscal||"";
+  $("#fac-iva").value=c.ivaDefecto??21; $("#fac-irpf").value=c.irpfDefecto??15;
+  $("#fac-ac").style.display="none"; calcFacTotals();
+}
+function hideFacAC(){ setTimeout(()=>{ const e=$("#fac-ac"); if(e) e.style.display="none"; },150); }
+
+/* ---- Drive ---- */
+function getQuarter(dateStr){ const d=dateStr?new Date(dateStr+"T12:00:00"):new Date(); const m=d.getMonth()+1,y=d.getFullYear(); const q=m<=3?1:m<=6?2:m<=9?3:4; return {label:y+"-"+q+"T",year:y,q}; }
+async function getOrCreateIngresosFolder(dateStr){
+  const {label}=getQuarter(dateStr);
+  if(DRIVE.knownFolders[label]) return DRIVE.knownFolders[label];
+  let trimId=null;
+  const st=await api(`https://www.googleapis.com/drive/v3/files?q=name='${label}' and mimeType='application/vnd.google-apps.folder' and '${DRIVE.declaracionesId}' in parents and trashed=false&fields=files(id)`);
+  if(st.files&&st.files.length){ trimId=st.files[0].id; }
+  else{ const c=await api("https://www.googleapis.com/drive/v3/files",{method:"POST",body:JSON.stringify({name:label,mimeType:"application/vnd.google-apps.folder",parents:[DRIVE.declaracionesId]})}); trimId=c.id; }
+  let ingId=null;
+  const si=await api(`https://www.googleapis.com/drive/v3/files?q=name='INGRESOS' and mimeType='application/vnd.google-apps.folder' and '${trimId}' in parents and trashed=false&fields=files(id)`);
+  if(si.files&&si.files.length){ ingId=si.files[0].id; }
+  else{ const c=await api("https://www.googleapis.com/drive/v3/files",{method:"POST",body:JSON.stringify({name:"INGRESOS",mimeType:"application/vnd.google-apps.folder",parents:[trimId]})}); ingId=c.id; }
+  DRIVE.knownFolders[label]=ingId; return ingId;
+}
+async function uploadToDrive(pdfBytes,filename,dateStr){
+  if(!gAuth.connected) return null;
+  try{
+    const folderId=await getOrCreateIngresosFolder(dateStr);
+    const boundary="gcg_"+Date.now();
+    const meta={name:filename,mimeType:"application/pdf",parents:[folderId]};
+    const enc=new TextEncoder();
+    const p1=enc.encode("--"+boundary+"\r\nContent-Type: application/json\r\n\r\n"+JSON.stringify(meta)+"\r\n");
+    const p2=enc.encode("--"+boundary+"\r\nContent-Type: application/pdf\r\n\r\n");
+    const p3=enc.encode("\r\n--"+boundary+"--");
+    const body=new Uint8Array(p1.length+p2.length+pdfBytes.length+p3.length);
+    body.set(p1,0); body.set(p2,p1.length); body.set(pdfBytes,p1.length+p2.length); body.set(p3,p1.length+p2.length+pdfBytes.length);
+    const r=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink",{method:"POST",headers:{Authorization:"Bearer "+gAuth.token,"Content-Type":"multipart/related; boundary="+boundary},body});
+    if(!r.ok) throw new Error("Upload "+r.status);
+    const res=await r.json(); return res.webViewLink||"https://drive.google.com/file/d/"+res.id+"/view";
+  }catch(e){ console.error(e); return null; }
+}
+
+/* ---- Excel de contabilidad ---- */
+const CONTA_NAME="Contabilidad_Ingresos_"+new Date().getFullYear()+".xlsx";
+async function getOrCreateContaSheet(){
+  if(_contaSheetId) return _contaSheetId;
+  const q=encodeURIComponent("name='"+CONTA_NAME+"' and '"+DRIVE.declaracionesId+"' in parents and trashed=false");
+  const res=await api("https://www.googleapis.com/drive/v3/files?q="+q+"&fields=files(id)");
+  if(res.files&&res.files.length){ _contaSheetId=res.files[0].id; return _contaSheetId; }
+  const created=await api("https://sheets.googleapis.com/v4/spreadsheets",{method:"POST",body:JSON.stringify({properties:{title:CONTA_NAME},sheets:[{properties:{title:"Facturas"}}]})});
+  _contaSheetId=created.spreadsheetId;
+  await api("https://www.googleapis.com/drive/v3/files/"+_contaSheetId+"?addParents="+DRIVE.declaracionesId+"&removeParents=root&fields=id",{method:"PATCH",body:"{}"});
+  await contaWrite(_contaSheetId,"Facturas!A1:K1",[["FACTURA","FECHA","CLIENTE","CONCEPTO","IMPORTE","TIPO IVA","TIPO RETENCIÓN","RETENCIÓN","INGRESO","IMPORTE COBRADO","ESTADO"]]);
+  await api("https://sheets.googleapis.com/v4/spreadsheets/"+_contaSheetId+":batchUpdate",{method:"POST",body:JSON.stringify({requests:[
+    {repeatCell:{range:{sheetId:0,startRowIndex:0,endRowIndex:1},cell:{userEnteredFormat:{backgroundColor:{red:.85,green:.85,blue:.85},textFormat:{bold:true}}},fields:"userEnteredFormat(backgroundColor,textFormat)"}},
+    {setDataValidation:{range:{sheetId:0,startRowIndex:1,endRowIndex:1000,startColumnIndex:10,endColumnIndex:11},rule:{condition:{type:"ONE_OF_LIST",values:[{userEnteredValue:"Pendiente"},{userEnteredValue:"Parcial"},{userEnteredValue:"Cobrada"}]},showCustomUi:true,strict:true}}}
+  ]})});
+  return _contaSheetId;
+}
+async function contaWrite(sid,range,values){ await api("https://sheets.googleapis.com/v4/spreadsheets/"+sid+"/values/"+encodeURIComponent(range)+"?valueInputOption=USER_ENTERED",{method:"PUT",body:JSON.stringify({values})}); }
+async function contaAppend(sid,values){ await api("https://sheets.googleapis.com/v4/spreadsheets/"+sid+"/values/Facturas!A:K:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",{method:"POST",body:JSON.stringify({values})}); }
+async function updateContabilidad(inv){
+  const sid=await getOrCreateContaSheet();
+  const dateFormatted=inv.date?new Date(inv.date+"T12:00:00").toLocaleDateString("es-ES"):"";
+  await contaAppend(sid,[[inv.seq,dateFormatted,inv.clientName,inv.concepto||"",inv.base,inv.ivaPct+"%",inv.irpfPct+"%",inv.irpf,inv.total,0,"Pendiente"]]);
+}
+
+/* ---- generar factura (PDF + Drive + contabilidad + cartera) ---- */
+async function generateInvoice(){
+  const clientName=$("#fac-name").value.trim();
+  if(!clientName){ toast("Indica el nombre del cliente","err"); return; }
+  if(!facLines.some(l=>l.desc&&parseFloat(l.price)>0)){ toast("Añade al menos un concepto con importe","err"); return; }
+  const btn=$("#fac-gen"); btn.disabled=true; btn.textContent="Generando…";
+
+  const seq=nextSeq(), num=fmtNum(seq);
+  const dateVal=$("#fac-date").value;
+  const dateFmt=dateVal?new Date(dateVal+"T12:00:00").toLocaleDateString("es-ES",{day:"2-digit",month:"long",year:"numeric"}):"";
+  const cNif=$("#fac-nif").value.trim(), cEmail=$("#fac-email").value.trim(), cAddr=$("#fac-addr").value.trim();
+  const notes=$("#fac-notes").value.trim();
+  const ivaPct=getIva(), irpfPct=getIrpf();
+  const ivaPctDisp=parseFloat($("#fac-iva").value)||0, irpfPctDisp=parseFloat($("#fac-irpf").value)||0;
+  const base=facLines.reduce((s,l)=>s+(parseFloat(l.qty)||0)*(parseFloat(l.price)||0),0);
+  const iva=base*ivaPct, irpf=base*irpfPct, total=base+iva-irpf;
+
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:"mm",format:"a4"});
+  const PW=210,L=22,R=188,CW=R-L,RH=10; let y=26;
+  doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(20,20,20);
+  doc.text(EMISOR.nombre,L,y);
+  doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.text("FACTURA Nº: "+seq,R,y,{align:"right"}); y+=6;
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60);
+  doc.text(EMISOR.nif,L,y); doc.text("Fecha: "+dateFmt,R,y,{align:"right"});
+  y+=5; doc.text(EMISOR.dir1,L,y); y+=5; doc.text(EMISOR.dir2,L,y); y+=5; doc.text(EMISOR.email,L,y); y+=5; doc.text(EMISOR.tel,L,y); y+=14;
+  doc.setDrawColor(180,180,180); doc.setLineWidth(.4); doc.line(L,y,R,y); y+=14;
+  doc.setFont("helvetica","bold"); doc.setFontSize(12); doc.setTextColor(20,20,20); doc.text(clientName,L,y); y+=7;
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60);
+  if(cNif){ doc.text(cNif,L,y); y+=5; }
+  if(cAddr){ const al=doc.splitTextToSize(cAddr,100); doc.text(al,L,y); y+=al.length*5; }
   y+=14;
-
-  doc.setDrawColor(180,180,180); doc.setLineWidth(0.4); doc.line(L,y,R,y); y+=14;
-
-  // Cliente
-  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(20,20,20);
-  doc.text(clientName, L, y); y+=7;
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
-  if (cNif)  { doc.text(cNif, L, y); y+=5; }
-  if (cAddr) { const al=doc.splitTextToSize(cAddr,100); doc.text(al,L,y); y+=al.length*5; }
-  y+=14;
-
-  // Tabla — cabecera
-  const col = { desc:L+2, cant:118, cu:140, base:162, iva:173, total:R-1 };
-  doc.setFillColor(245,245,245); doc.rect(L,y-6,CW,RH,'F');
-  doc.setDrawColor(200,200,200); doc.setLineWidth(0.3); doc.rect(L,y-6,CW,RH,'S');
-  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(40,40,40);
-  doc.text('Descripci\u00F3n Servicio', col.desc, y);
-  doc.text('Cantidad', col.cant, y, {align:'right'});
-  doc.text('C/U', col.cu, y, {align:'right'});
-  doc.text('Base Imponible', col.total, y, {align:'right'});
-  y+=RH;
-
-  // Filas
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(20,20,20);
-  lines.filter(l=>l.desc||parseFloat(l.price)>0).forEach((l,i)=>{
-    const qty=parseFloat(l.qty)||0, price=parseFloat(l.price)||0;
-    const lb=qty*price, li=lb*ivaPct, lt=lb+li;
-    if (i%2===0) { doc.setFillColor(252,252,252); doc.rect(L,y-6,CW,RH,'F'); }
-    doc.setDrawColor(230,230,230); doc.rect(L,y-6,CW,RH,'S');
-    let desc=l.desc||''; if(desc.length>60) desc=desc.substring(0,57)+'...';
-    doc.text(desc, col.desc, y);
-    doc.text(fmtN(qty),              col.cant,  y, {align:'right'});
-    doc.text(fmtN(price)+' \u20AC', col.cu,    y, {align:'right'});
-    doc.text(fmtN(lb)+' \u20AC',    col.total, y, {align:'right'});
-    y+=RH;
+  const col={desc:L+2,cant:118,cu:140,total:R-1};
+  doc.setFillColor(245,245,245); doc.rect(L,y-6,CW,RH,"F");
+  doc.setDrawColor(200,200,200); doc.setLineWidth(.3); doc.rect(L,y-6,CW,RH,"S");
+  doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(40,40,40);
+  doc.text("Descripción Servicio",col.desc,y); doc.text("Cantidad",col.cant,y,{align:"right"}); doc.text("C/U",col.cu,y,{align:"right"}); doc.text("Base Imponible",col.total,y,{align:"right"}); y+=RH;
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(20,20,20);
+  facLines.filter(l=>l.desc||parseFloat(l.price)>0).forEach((l,i)=>{
+    const qty=parseFloat(l.qty)||0,price=parseFloat(l.price)||0,lb=qty*price;
+    if(i%2===0){ doc.setFillColor(252,252,252); doc.rect(L,y-6,CW,RH,"F"); }
+    doc.setDrawColor(230,230,230); doc.rect(L,y-6,CW,RH,"S");
+    let desc=l.desc||""; if(desc.length>60) desc=desc.substring(0,57)+"...";
+    doc.text(desc,col.desc,y); doc.text(fmtN(qty),col.cant,y,{align:"right"}); doc.text(fmtN(price)+" €",col.cu,y,{align:"right"}); doc.text(fmtN(lb)+" €",col.total,y,{align:"right"}); y+=RH;
   });
   y+=12;
-
-  // Bloque inferior — calcular altura dinámica según filas de totales
-  const totRows = 1 + (ivaPct>0?1:0) + (irpfPct>0?1:0) + 1;
-  const blockH = totRows * RH + 8;
-  const blockTop=y, midX=110;
-
-  // Forma de pago
-  doc.setFillColor(248,248,248); doc.setDrawColor(210,210,210); doc.setLineWidth(0.3);
-  doc.rect(L, blockTop, midX-L-4, blockH, 'FD');
-  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(40,40,40);
-  doc.text('Forma de pago', L+4, blockTop+9);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
-  doc.text('Transferencia bancaria', L+4, blockTop+18);
-  doc.text(EMISOR.iban, L+4, blockTop+26);
-
-  // Totales — alineados con blockTop, negro
-  const tx=midX+2, totW=R-tx;
-  let ty = blockTop; // empezar exactamente donde empieza "Forma de pago"
-  function trow(lbl,val,bold,bg) {
-    if(bg){doc.setFillColor(...bg);doc.rect(tx,ty,totW,RH,'F');}
-    doc.setDrawColor(210,210,210);doc.rect(tx,ty,totW,RH,'S');
-    if(bold){doc.setFont('helvetica','bold');doc.setFontSize(10);}
-    else{doc.setFont('helvetica','normal');doc.setFontSize(9);}
-    doc.setTextColor(20,20,20);
-    doc.text(lbl,tx+3,ty+6.5); doc.text(val,R-2,ty+6.5,{align:'right'}); ty+=RH;
-  }
-
-  trow('Base Imponible',                    fmtN(base)+' \u20AC',        false, [248,248,248]);
-  if (ivaPct > 0)  trow('IVA '+ivaPctDisp+' %',        '+'+fmtN(iva)+' \u20AC',  false, [248,248,248]);
-  if (irpfPct > 0) trow('RETENCI\u00D3N '+irpfPctDisp+' %', '-'+fmtN(irpf)+' \u20AC', false, [248,248,248]);
-  trow('Total',                             fmtN(total)+' \u20AC',       true,  [232,232,232]);
-
-  y = blockTop + blockH + 16;
-
-  // Observaciones
-  if (notes) {
-    doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(100,100,100);
-    doc.text(doc.splitTextToSize(notes,CW), L, y);
-  }
-
-  // Pie
+  const totRows=1+(ivaPct>0?1:0)+(irpfPct>0?1:0)+1, blockH=totRows*RH+8, blockTop=y, midX=110;
+  doc.setFillColor(248,248,248); doc.setDrawColor(210,210,210); doc.setLineWidth(.3); doc.rect(L,blockTop,midX-L-4,blockH,"FD");
+  doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(40,40,40); doc.text("Forma de pago",L+4,blockTop+9);
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(60,60,60); doc.text("Transferencia bancaria",L+4,blockTop+18); doc.text(EMISOR.iban,L+4,blockTop+26);
+  const tx=midX+2,totW=R-tx; let ty=blockTop;
+  function trow(lbl,val,bold,bg){ if(bg){doc.setFillColor(...bg);doc.rect(tx,ty,totW,RH,"F");} doc.setDrawColor(210,210,210); doc.rect(tx,ty,totW,RH,"S"); if(bold){doc.setFont("helvetica","bold");doc.setFontSize(10);}else{doc.setFont("helvetica","normal");doc.setFontSize(9);} doc.setTextColor(20,20,20); doc.text(lbl,tx+3,ty+6.5); doc.text(val,R-2,ty+6.5,{align:"right"}); ty+=RH; }
+  trow("Base Imponible",fmtN(base)+" €",false,[248,248,248]);
+  if(ivaPct>0) trow("IVA "+ivaPctDisp+" %","+"+fmtN(iva)+" €",false,[248,248,248]);
+  if(irpfPct>0) trow("RETENCIÓN "+irpfPctDisp+" %","-"+fmtN(irpf)+" €",false,[248,248,248]);
+  trow("Total",fmtN(total)+" €",true,[232,232,232]);
+  y=blockTop+blockH+16;
+  if(notes){ doc.setFont("helvetica","italic"); doc.setFontSize(8.5); doc.setTextColor(100,100,100); doc.text(doc.splitTextToSize(notes,CW),L,y); }
   doc.setDrawColor(180,180,180); doc.line(L,281,R,281);
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
-  doc.text(EMISOR.nombre+' · Abogado · Colegiado ICAB nº '+EMISOR.icab, PW/2, 287, {align:'center'});
+  doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.setTextColor(150,150,150);
+  doc.text(EMISOR.nombre+" · Abogado · Colegiado ICAB nº "+EMISOR.icab,PW/2,287,{align:"center"});
 
-  // ── GUARDAR ───────────────────────────────────────────────────────────────────
-  const filename = 'FACTURA - '+seq+' - '+clientName+'.pdf';
+  const filename="FACTURA - "+seq+" - "+clientName+".pdf";
   doc.save(filename);
+  const concepto=facLines.find(l=>l.desc)?.desc||"";
 
-  // Concepto resumido (primera línea con descripción)
-  const concepto = lines.find(l=>l.desc)?.desc || '';
+  // cliente en la cartera (actualiza o crea)
+  let cli=facSel?clienteById(facSel):state.clientes.find(c=>c.nombre.toLowerCase()===clientName.toLowerCase());
+  if(cli){ if(cNif)cli.nif=cNif; if(cEmail)cli.email=cEmail; if(cAddr)cli.direccionFiscal=cAddr; cli.ivaDefecto=ivaPctDisp; cli.irpfDefecto=irpfPctDisp; }
+  else{ cli={id:uid(),nombre:clientName,referencia:"",nif:cNif,direccionFiscal:cAddr,email:cEmail,telefono:"",estado:"",notas:"",ivaDefecto:ivaPctDisp,irpfDefecto:irpfPctDisp,creado:todayISO()}; state.clientes.push(cli); }
 
-  const invRecord = {seq, year:YEAR, num, date:dateVal, clientName, clientNif:cNif, concepto, base, iva, irpf, ivaPct:ivaPctDisp, irpfPct:irpfPctDisp, total, driveUrl:null};
+  const invRecord={seq,year:YEAR,num,date:dateVal,clienteId:cli.id,clientName,clientNif:cNif,concepto,base,iva,irpf,ivaPct:ivaPctDisp,irpfPct:irpfPctDisp,total,driveUrl:null};
 
-  let driveUrl = null;
-  if (driveReady && driveToken) {
-    btn.textContent = 'Subiendo a Drive...';
-    try {
-      driveUrl = await uploadToDrive(new Uint8Array(doc.output('arraybuffer')), filename, dateVal);
-      invRecord.driveUrl = driveUrl;
-      const {label} = getQuarter(dateVal);
-      if (driveUrl) toast('Factura '+seq+' guardada en Drive · '+label+'/INGRESOS', true);
-      else toast('PDF descargado. No se pudo subir a Drive.', false);
-    } catch(e) { toast('PDF descargado. Error Drive: '+e.message, false); }
-
-    // Actualizar Excel de contabilidad
-    btn.textContent = 'Actualizando Excel...';
-    try {
-      await updateContabilidad(invRecord);
-    } catch(e) { console.error('Excel error:', e); }
+  if(gAuth.connected){
+    btn.textContent="Subiendo a Drive…";
+    try{
+      const url=await uploadToDrive(new Uint8Array(doc.output("arraybuffer")),filename,dateVal);
+      invRecord.driveUrl=url||null;
+      const {label}=getQuarter(dateVal);
+      if(url) toast("Factura "+seq+" guardada en Drive · "+label+"/INGRESOS"); else toast("PDF descargado. No se pudo subir a Drive","err");
+    }catch(e){ toast("PDF descargado. Error de Drive","err"); }
+    btn.textContent="Actualizando contabilidad…";
+    try{ await updateContabilidad(invRecord); }catch(e){ console.error("Conta:",e); }
   } else {
-    toast('Factura '+seq+' descargada. Conecta Drive para subir automáticamente.', false);
+    toast("Factura "+seq+" descargada. Conecta Google para archivarla");
   }
 
-  saveClient(clientName, cNif, cEmail, cAddr, ivaPctDisp, irpfPctDisp);
-  invoices.push(invRecord);
-  saveData(SK_INV, invoices);
-
-  lines = [{desc:'',qty:1,price:''}];
-  ['c-name','c-nif','c-email','c-addr','f-notes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f-iva').value  = 21;
-  document.getElementById('f-irpf').value = 15;
-  document.getElementById('f-num').value  = fmtNum(nextSeq());
-  btn.disabled=false; btn.textContent='Generar y descargar factura PDF';
-  renderLines(); renderHist(); renderStats();
+  state.facturas.push(invRecord);
+  // reset formulario
+  facLines=[{desc:"",qty:1,price:""}]; facSel=null;
+  ["fac-name","fac-nif","fac-email","fac-addr","fac-notes"].forEach(id=>{ const e=$("#"+id); if(e)e.value=""; });
+  $("#fac-iva").value=21; $("#fac-irpf").value=15;
+  btn.disabled=false; btn.textContent="Generar y descargar factura PDF";
+  commit();                 // guarda, sincroniza y repinta historial
+  $("#fac-num").value=fmtNum(nextSeq());
+  renderFacLines();
 }
 
-// ── EXCEL DE CONTABILIDAD ────────────────────────────────────────────────────
-// Nombre del archivo Excel en DECLARACIONES
-const EXCEL_NAME = 'Contabilidad_Ingresos_'+new Date().getFullYear()+'.xlsx';
-// Cache del spreadsheetId para no buscarlo cada vez
-let _sheetId = null;
-
-async function getOrCreateSheet() {
-  if (_sheetId) return _sheetId;
-
-  // Buscar si ya existe en DECLARACIONES
-  const q = encodeURIComponent("name='"+EXCEL_NAME+"' and '"+DRIVE.declaracionesId+"' in parents and trashed=false");
-  const res = await driveReq('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id)');
-  if (res.files?.length) { _sheetId = res.files[0].id; return _sheetId; }
-
-  // Crear nueva Google Sheet
-  const created = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer '+driveToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      properties: { title: EXCEL_NAME },
-      sheets: [{ properties: { title: 'Facturas' } }]
-    })
-  }).then(r=>r.json());
-
-  _sheetId = created.spreadsheetId;
-
-  // Mover a carpeta DECLARACIONES
-  await driveReq(
-    'https://www.googleapis.com/drive/v3/files/'+_sheetId+'?addParents='+DRIVE.declaracionesId+'&removeParents=root&fields=id',
-    'PATCH', {}
-  );
-
-  // Escribir cabecera
-  const headers = [['FACTURA','FECHA','CLIENTE','CONCEPTO','IMPORTE','TIPO IVA','TIPO RETENCIÓN','RETENCIÓN','INGRESO','IMPORTE COBRADO','ESTADO']];
-  await sheetsWrite(_sheetId, 'Facturas!A1:K1', headers);
-
-  // Formato cabecera: negrita + fondo gris
-  await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+_sheetId+':batchUpdate', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer '+driveToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ requests: [
-      { repeatCell: { range: { sheetId:0, startRowIndex:0, endRowIndex:1 },
-        cell: { userEnteredFormat: {
-          backgroundColor: { red:0.85, green:0.85, blue:0.85 },
-          textFormat: { bold: true }
-        }},
-        fields: 'userEnteredFormat(backgroundColor,textFormat)'
-      }},
-      // Validación desplegable en columna ESTADO (K = col 10)
-      { setDataValidation: { range: { sheetId:0, startRowIndex:1, endRowIndex:1000, startColumnIndex:10, endColumnIndex:11 },
-        rule: { condition: { type:'ONE_OF_LIST', values:[
-          {userEnteredValue:'Pendiente'},
-          {userEnteredValue:'Parcial'},
-          {userEnteredValue:'Cobrada'}
-        ]}, showCustomUi:true, strict:true }
-      }}
-    ]})
-  });
-
-  return _sheetId;
+/* ---- historial ---- */
+function renderFacStats(){
+  const yr=state.facturas.filter(i=>Number(i.year)===YEAR);
+  const base=yr.reduce((s,i)=>s+(Number(i.base)||0),0);
+  const total=yr.reduce((s,i)=>s+(Number(i.total)||0),0);
+  const el=$("#fac-stats"); if(!el) return;
+  el.innerHTML=`
+    <div class="fstat"><div class="v">${yr.length}</div><div class="l">Facturas ${YEAR}</div></div>
+    <div class="fstat"><div class="v">${fmtN(base)} €</div><div class="l">Base acumulada</div></div>
+    <div class="fstat"><div class="v">${fmtN(total)} €</div><div class="l">Total facturado</div></div>
+    <div class="fstat"><div class="v">${state.clientes.length}</div><div class="l">Clientes</div></div>`;
+}
+function renderFacHist(){
+  const el=$("#fac-hist"); if(!el) return;
+  const yr=state.facturas.filter(i=>Number(i.year)===YEAR).slice().sort((a,b)=>Number(b.seq)-Number(a.seq));
+  if(!yr.length){ el.innerHTML=`<div class="empty"><span class="serif">Sin facturas este año</span>Las que generes aparecerán aquí.</div>`; return; }
+  el.innerHTML=yr.map(inv=>`
+    <div class="invcard">
+      <div class="it">
+        <div>
+          <div class="invnum">Factura ${inv.num||fmtNum(inv.seq)}</div>
+          <div class="invcli">${esc(inv.clientName)}${inv.clientNif?' · '+esc(inv.clientNif):''}</div>
+          <div class="invmeta">${inv.date?new Date(inv.date+"T12:00:00").toLocaleDateString("es-ES"):""} · IVA ${inv.ivaPct??21}% · Ret. ${inv.irpfPct??15}%</div>
+        </div>
+        <div>
+          <div class="invamt">${fmtMoney(inv.total)}</div>
+          <div class="invbase">Base ${fmtMoney(inv.base)}</div>
+          ${inv.driveUrl?`<div class="invdrive"><a href="${esc(inv.driveUrl)}" target="_blank">Ver en Drive ↗</a></div>`:""}
+        </div>
+      </div>
+      <button class="invdel" onclick="delFactura(${inv.seq})">Eliminar del historial</button>
+    </div>`).join("");
+}
+function delFactura(seq){
+  if(!confirm("¿Eliminar esta factura del historial de la app? (No borra el PDF de Drive ni la fila de contabilidad.)")) return;
+  state.facturas=state.facturas.filter(i=>!(Number(i.seq)===seq&&Number(i.year)===YEAR));
+  commit(); $("#fac-num") && ($("#fac-num").value=fmtNum(nextSeq()));
 }
 
-async function sheetsWrite(sheetId, range, values) {
-  await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/'+encodeURIComponent(range)+'?valueInputOption=USER_ENTERED', {
-    method: 'PUT',
-    headers: { Authorization: 'Bearer '+driveToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ values })
-  });
+/* ===================== ACCIONES CRUD ===================== */
+function toggleTask(id){ const t=state.tareas.find(x=>x.id===id); if(!t)return; t.estado=t.estado==='hecha'?'abierta':'hecha'; t.completadoEn=t.estado==='hecha'?todayISO():""; commit(); }
+function selectCliente(id){ selectedCliente=id; renderClientes(); }
+function go(v){ setView(v); }
+
+/* ---------- Modales de formulario ---------- */
+function openModal(html){ $("#overlay").innerHTML=html; $("#overlay").classList.add("show"); const fi=$("#overlay").querySelector("input,textarea,select"); if(fi) setTimeout(()=>fi.focus(),60); }
+function closeModal(){ $("#overlay").classList.remove("show"); setTimeout(()=>$("#overlay").innerHTML="",160); }
+$("#overlay").addEventListener("click",e=>{ if(e.target.id==="overlay") closeModal(); });
+
+function clienteOptions(sel){ return `<option value="">— Sin cliente —</option>`+state.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${esc(c.nombre)}</option>`).join(""); }
+
+/* CLIENTE */
+function newCliente(){ editCliente(null); }
+function editCliente(id){
+  const c=id?clienteById(id):{};
+  openModal(`<div class="modal"><header><h3>${id?'Editar cliente':'Nuevo cliente'}</h3><button class="icon-btn" onclick="closeModal()"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <div class="body">
+      <div class="field"><label>Nombre / razón social</label><input id="f-nombre" value="${esc(c.nombre||'')}" placeholder="Nombre del cliente"></div>
+      <div class="field row2">
+        <div class="field"><label>Referencia / expediente</label><input id="f-ref" value="${esc(c.referencia||'')}" placeholder="EXP-2026-001"></div>
+        <div class="field"><label>Estado</label><input id="f-estado" value="${esc(c.estado||'')}" placeholder="Activo, en trámite…"></div>
+      </div>
+      <div class="field row2">
+        <div class="field"><label>Email</label><input id="f-email" type="email" value="${esc(c.email||'')}" placeholder="cliente@correo.com"></div>
+        <div class="field"><label>Teléfono</label><input id="f-tel" value="${esc(c.telefono||'')}" placeholder="+34 ..."></div>
+      </div>
+      <div class="field"><label>Notas</label><textarea id="f-notas" placeholder="Contexto del asunto, recordatorios…">${esc(c.notas||'')}</textarea></div>
+      <div class="section-head" style="padding:6px 0 0"><span class="label">Datos de facturación</span></div>
+      <div class="field row2">
+        <div class="field"><label>NIF / CIF</label><input id="f-nif" value="${esc(c.nif||'')}" placeholder="12345678A"></div>
+        <div class="field"><label>Dirección fiscal</label><input id="f-dir" value="${esc(c.direccionFiscal||'')}" placeholder="Calle, nº, CP, ciudad"></div>
+      </div>
+      <div class="field row2">
+        <div class="field"><label>IVA por defecto (%)</label><input id="f-ivad" type="number" value="${c.ivaDefecto??21}" min="0" max="100" step="0.1"></div>
+        <div class="field"><label>Retención IRPF por defecto (%)</label><input id="f-irpfd" type="number" value="${c.irpfDefecto??15}" min="0" max="100" step="0.1"></div>
+      </div>
+    </div>
+    <footer>
+      ${id?`<button class="btn-danger" onclick="delCliente('${id}')"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>Eliminar</button>`:`<span></span>`}
+      <div style="display:flex;gap:8px"><button class="btn-text" onclick="closeModal()">Cancelar</button><button class="btn-primary" onclick="saveCliente('${id||''}')">Guardar</button></div>
+    </footer></div>`);
+}
+function saveCliente(id){
+  const nombre=$("#f-nombre").value.trim();
+  if(!nombre){ toast("El nombre es obligatorio","err"); return; }
+  const data={ nombre, referencia:$("#f-ref").value.trim(), estado:$("#f-estado").value.trim(), email:$("#f-email").value.trim(), telefono:$("#f-tel").value.trim(), notas:$("#f-notas").value.trim(),
+    nif:$("#f-nif").value.trim(), direccionFiscal:$("#f-dir").value.trim(),
+    ivaDefecto:parseFloat($("#f-ivad").value)||0, irpfDefecto:parseFloat($("#f-irpfd").value)||0 };
+  if(id){ Object.assign(clienteById(id),data); }
+  else { const c={id:uid(),...data,creado:todayISO()}; state.clientes.push(c); selectedCliente=c.id; }
+  closeModal(); commit(); toast("Cliente guardado");
+}
+function delCliente(id){
+  if(!confirm("¿Eliminar este cliente? Sus tareas y citas quedarán sin asignar.")) return;
+  state.clientes=state.clientes.filter(c=>c.id!==id);
+  state.tareas.forEach(t=>{ if(t.clienteId===id)t.clienteId=""; });
+  state.agenda.forEach(a=>{ if(a.clienteId===id)a.clienteId=""; });
+  if(selectedCliente===id) selectedCliente=state.clientes[0]?state.clientes[0].id:null;
+  closeModal(); commit(); toast("Cliente eliminado");
 }
 
-async function sheetsAppend(sheetId, values) {
-  await fetch('https://sheets.googleapis.com/v4/spreadsheets/'+sheetId+'/values/Facturas!A:K:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS', {
-    method: 'POST',
-    headers: { Authorization: 'Bearer '+driveToken, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ values })
-  });
+/* TAREA */
+function newTask(clienteId){ editTask(null,clienteId); }
+function editTask(id,preCliente){
+  const t=id?state.tareas.find(x=>x.id===id):{clienteId:preCliente||""};
+  openModal(`<div class="modal"><header><h3>${id?'Editar tarea':'Nueva tarea'}</h3><button class="icon-btn" onclick="closeModal()"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <div class="body">
+      <div class="field"><label>Tarea</label><input id="f-titulo" value="${esc(t.titulo||'')}" placeholder="Redactar contestación, llamar a…"></div>
+      <div class="field"><label>Cliente</label><select id="f-cliente">${clienteOptions(t.clienteId)}</select></div>
+      <div class="field row2">
+        <div class="field"><label>Prioridad</label><select id="f-pri">
+          <option value="baja" ${t.prioridad==='baja'?'selected':''}>Baja</option>
+          <option value="media" ${t.prioridad==='media'?'selected':''}>Media</option>
+          <option value="alta" ${t.prioridad==='alta'?'selected':''}>Alta</option></select></div>
+        <div class="field"><label>Vencimiento</label><input id="f-venc" type="date" value="${esc(t.vencimiento||'')}"></div>
+      </div>
+      <div class="field"><label>Detalle</label><textarea id="f-detalle" placeholder="Notas, pasos, documentación…">${esc(t.detalle||'')}</textarea></div>
+    </div>
+    <footer>
+      ${id?`<button class="btn-danger" onclick="delTask('${id}')"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>Eliminar</button>`:`<span></span>`}
+      <div style="display:flex;gap:8px"><button class="btn-text" onclick="closeModal()">Cancelar</button><button class="btn-primary" onclick="saveTask('${id||''}')">Guardar</button></div>
+    </footer></div>`);
+}
+function saveTask(id){
+  const titulo=$("#f-titulo").value.trim();
+  if(!titulo){ toast("Escribe el título de la tarea","err"); return; }
+  const data={ titulo, clienteId:$("#f-cliente").value, prioridad:$("#f-pri").value, vencimiento:$("#f-venc").value, detalle:$("#f-detalle").value.trim() };
+  if(id){ Object.assign(state.tareas.find(x=>x.id===id),data); }
+  else { state.tareas.push({id:uid(),...data,estado:"abierta",creado:todayISO(),completadoEn:""}); }
+  closeModal(); commit(); toast("Tarea guardada");
+}
+function delTask(id){ state.tareas=state.tareas.filter(t=>t.id!==id); closeModal(); commit(); toast("Tarea eliminada"); }
+
+/* EVENTO */
+function newEvento(clienteId){ editEvento(null,clienteId); }
+function editEvento(id,preCliente){
+  const a=id?state.agenda.find(x=>x.id===id):{clienteId:preCliente||"",fecha:todayISO(),tipo:"Reunión"};
+  const tipos=["Vista","Plazo","Reunión","Llamada","Otro"];
+  const synced=!!a.gcalId;
+  openModal(`<div class="modal"><header><h3>${id?'Editar evento':'Nuevo evento'}</h3><button class="icon-btn" onclick="closeModal()"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <div class="body">
+      <div class="field"><label>Título</label><input id="f-titulo" value="${esc(a.titulo||'')}" placeholder="Vista oral, vencimiento recurso…"></div>
+      <div class="field row2">
+        <div class="field"><label>Tipo</label><select id="f-tipo">${tipos.map(tp=>`<option ${a.tipo===tp?'selected':''}>${tp}</option>`).join("")}</select></div>
+        <div class="field"><label>Cliente</label><select id="f-cliente">${clienteOptions(a.clienteId)}</select></div>
+      </div>
+      <div class="field row2">
+        <div class="field"><label>Fecha</label><input id="f-fecha" type="date" value="${esc(a.fecha||todayISO())}"></div>
+        <div class="field"><label>Hora</label><input id="f-hora" type="time" value="${esc(a.hora||'')}"></div>
+      </div>
+      <div class="field"><label>Lugar</label><input id="f-lugar" value="${esc(a.lugar||'')}" placeholder="Juzgado, despacho, videollamada…"></div>
+      <div class="field"><label>Notas</label><textarea id="f-notas" placeholder="Detalles, documentación a llevar…">${esc(a.notas||'')}</textarea></div>
+      <label style="display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink-soft);cursor:pointer;margin-top:2px">
+        <input type="checkbox" id="f-gcal" ${synced||!id?'checked':''} style="width:16px;height:16px;accent-color:var(--brand)">
+        Añadir a mi Google Calendar${synced?' (ya sincronizado)':''}
+      </label>
+    </div>
+    <footer>
+      ${id?`<button class="btn-danger" onclick="delEvento('${id}')"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>Eliminar</button>`:`<span></span>`}
+      <div style="display:flex;gap:8px"><button class="btn-text" onclick="closeModal()">Cancelar</button><button class="btn-primary" onclick="saveEvento('${id||''}')">Guardar</button></div>
+    </footer></div>`);
+}
+async function saveEvento(id){
+  const titulo=$("#f-titulo").value.trim();
+  if(!titulo){ toast("Escribe el título del evento","err"); return; }
+  const data={ titulo, tipo:$("#f-tipo").value, clienteId:$("#f-cliente").value, fecha:$("#f-fecha").value, hora:$("#f-hora").value, lugar:$("#f-lugar").value.trim(), notas:$("#f-notas").value.trim() };
+  if(!data.fecha){ toast("Indica la fecha","err"); return; }
+  const wantCal=$("#f-gcal").checked;
+  let ev;
+  if(id){ ev=state.agenda.find(x=>x.id===id); Object.assign(ev,data); }
+  else { ev={id:uid(),...data,gcalId:""}; state.agenda.push(ev); }
+  closeModal(); commit(); toast("Evento guardado");
+  if(gAuth.connected){
+    if(wantCal){ await upsertCalendarEvent(ev); }
+    else if(ev.gcalId){ await deleteCalendarEvent(ev.gcalId); ev.gcalId=""; saveLocal(); commit(); }
+  }
+}
+async function delEvento(id){
+  const ev=state.agenda.find(a=>a.id===id);
+  const gid=ev&&ev.gcalId;
+  state.agenda=state.agenda.filter(a=>a.id!==id);
+  closeModal(); commit(); toast("Evento eliminado");
+  if(gid) await deleteCalendarEvent(gid);
 }
 
-async function updateContabilidad(inv) {
-  const sid = await getOrCreateSheet();
-  const {label} = getQuarter(inv.date);
-  const dateFormatted = inv.date ? new Date(inv.date+'T12:00:00').toLocaleDateString('es-ES') : '';
-  const row = [
-    inv.seq,
-    dateFormatted,
-    inv.clientName,
-    inv.concepto || '',
-    inv.base,
-    inv.ivaPct+'%',
-    inv.irpfPct+'%',
-    inv.irpf,
-    inv.total,
-    0,          // Importe cobrado — se rellena manualmente
-    'Pendiente' // Estado inicial
+/* ---------- Config / conexión ---------- */
+function openConfig(){
+  const conn=gAuth.connected;
+  openModal(`<div class="modal"><header><h3>Conexión y datos</h3><button class="icon-btn" onclick="closeModal()"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <div class="body">
+      <div class="status-line"><span class="dot ${conn?'on':''}"></span>${conn?('Conectado · '+esc(gAuth.email||'Google')):'Trabajando solo en este dispositivo'}</div>
+      <div class="cfg-row">
+        <button class="btn-primary" style="flex:1;justify-content:center" onclick="connectGoogle()">${conn?'Reconectar con Google':'Conectar con Google'}</button>
+        ${conn?`<button class="btn-text" style="border:1px solid var(--line);border-radius:7px;padding:9px 14px" onclick="pullData()">Cargar de Google</button>`:""}
+      </div>
+      <div class="cfg-note">
+        <b>Cómo funciona.</b> Tus datos (clientes, tareas, agenda y facturas) se guardan al instante en este equipo. Al conectar Google, se sincronizan con una hoja llamada <b>"${esc(DATA_SHEET_NAME)}"</b> que la app crea sola en tu Drive. Los eventos de la agenda se crean también en tu <b>Google Calendar</b>; las facturas generan el PDF en tu carpeta de INGRESOS y la fila en tu Excel de contabilidad. Al abrir desde otro dispositivo, pulsa <b>Cargar de Google</b> para traer lo último.
+      </div>
+      <div class="cfg-row">
+        <button class="btn-text" style="border:1px solid var(--line);border-radius:7px;padding:9px 14px;flex:1" onclick="exportJSON()">Exportar copia (.json)</button>
+        <button class="btn-text" style="border:1px solid var(--line);border-radius:7px;padding:9px 14px;flex:1" onclick="document.getElementById('imp').click()">Importar copia</button>
+        <input type="file" id="imp" accept="application/json" style="display:none" onchange="importJSON(this)">
+      </div>
+    </div>
+    <footer><span style="font-size:12px;color:var(--ink-faint)">${esc(CONFIG.TITULAR)}</span><button class="btn-primary" onclick="closeModal()">Cerrar</button></footer>
+  </div>`);
+}
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="despacho-copia-"+todayISO()+".json"; a.click();
+}
+function importJSON(input){
+  const file=input.files[0]; if(!file)return;
+  const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); state={clientes:d.clientes||[],tareas:d.tareas||[],agenda:d.agenda||[],facturas:d.facturas||[]}; closeModal(); commit(); toast("Copia importada"); }catch(e){ toast("Archivo no válido","err"); } }; r.readAsText(file);
+}
+
+/* ===================== TOAST ===================== */
+function toast(msg,type){
+  const el=document.createElement("div");
+  el.className="toast"+(type==="err"?" err":"");
+  el.innerHTML=`<svg viewBox="0 0 24 24">${type==="err"?'<path d="M12 8v5M12 16h.01"/><circle cx="12" cy="12" r="9"/>':'<path d="M5 13l4 4L19 7"/>'}</svg>${esc(msg)}`;
+  $("#toasts").appendChild(el);
+  setTimeout(()=>{ el.style.opacity="0"; el.style.transition="opacity .3s"; setTimeout(()=>el.remove(),300); },2600);
+}
+
+/* ===================== NAV / ARRANQUE ===================== */
+function setView(v){
+  view=v; selectedCliente = v==="clientes"?selectedCliente:selectedCliente;
+  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===v));
+  closeMobileNav();
+  render();
+  $(".main").scrollTop=0;
+}
+document.querySelectorAll("#nav button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
+$("#quick-add").addEventListener("click",()=>{
+  if(view==="clientes") newCliente();
+  else if(view==="agenda") newEvento();
+  else newTask();
+});
+$("#open-config").addEventListener("click",openConfig);
+
+/* nav móvil */
+function closeMobileNav(){ $("#sidebar").classList.remove("open"); $("#scrim").classList.remove("show"); }
+$("#menu-toggle").addEventListener("click",()=>{ $("#sidebar").classList.add("open"); $("#scrim").classList.add("show"); });
+$("#scrim").addEventListener("click",closeMobileNav);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModal(); });
+
+/* seed de ejemplo la primera vez (se puede borrar) */
+function seedIfEmpty(){
+  if(state.clientes.length||state.tareas.length||state.agenda.length||state.facturas.length) return;
+  const c1=uid(),c2=uid();
+  state.clientes=[
+    {id:c1,nombre:"Guillot Mir y Carbonell Vallés",referencia:"EXP-2026-014",nif:"",direccionFiscal:"",email:"",telefono:"",estado:"Auditoría contractual",notas:"Compraventa sobre plano · Vilafranca del Penedès. Revisar asimetría de penalizaciones.",ivaDefecto:21,irpfDefecto:15,creado:todayISO()},
+    {id:c2,nombre:"Comunidad de Propietarios (cliente)",referencia:"EXP-2026-021",nif:"",direccionFiscal:"",email:"",telefono:"",estado:"En trámite",notas:"Irregularidades documentales de la junta. Correspondencia con la administración de fincas.",ivaDefecto:21,irpfDefecto:0,creado:todayISO()}
   ];
-  await sheetsAppend(sid, [row]);
+  const t=todayISO(), d=(n)=>{const x=parseISO(t);x.setDate(x.getDate()+n);return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0");};
+  state.tareas=[
+    {id:uid(),clienteId:c2,titulo:"Enviar escrito a la administración de fincas",detalle:"",prioridad:"alta",estado:"abierta",vencimiento:d(-1),creado:t,completadoEn:""},
+    {id:uid(),clienteId:c1,titulo:"Cerrar informe de riesgos antesdefirma",detalle:"",prioridad:"media",estado:"abierta",vencimiento:d(0),creado:t,completadoEn:""},
+    {id:uid(),clienteId:c1,titulo:"Revisar cláusula de arras con el cliente",detalle:"",prioridad:"media",estado:"abierta",vencimiento:d(3),creado:t,completadoEn:""}
+  ];
+  state.agenda=[
+    {id:uid(),clienteId:c2,titulo:"Llamada con el cliente",tipo:"Llamada",fecha:d(0),hora:"12:30",lugar:"Teléfono",notas:""},
+    {id:uid(),clienteId:c1,titulo:"Vencimiento plazo de subsanación",tipo:"Plazo",fecha:d(5),hora:"",lugar:"",notas:""}
+  ];
+  saveLocal();
 }
 
-// ── HISTORIAL ─────────────────────────────────────────────────────────────────
-function renderHist() {
-  const el = document.getElementById('hist-list');
-  const yr = invoices.filter(i=>i.year===YEAR).slice().reverse();
-  if (!yr.length) { el.innerHTML='<div class="empty">Aún no hay facturas este año.<br>Las que generes aparecerán aquí.</div>'; return; }
-  el.innerHTML = yr.map(inv=>`
-    <div class="inv-card">
-      <div class="inv-top">
-        <div>
-          <div class="inv-num">Factura ${inv.num}</div>
-          <div class="inv-cli">${inv.clientName}${inv.clientNif?' · '+inv.clientNif:''}</div>
-          <div class="inv-date">${inv.date?new Date(inv.date+'T12:00:00').toLocaleDateString('es-ES'):''}</div>
-          <div class="inv-taxes">IVA ${inv.ivaPct??21}% · Ret. ${inv.irpfPct??15}%</div>
-        </div>
-        <div>
-          <div class="inv-amt">${fmtMoney(inv.total)}</div>
-          <div class="inv-base">Base: ${fmtMoney(inv.base)}</div>
-          ${inv.driveUrl?`<div class="inv-drive"><a href="${inv.driveUrl}" target="_blank">Ver en Drive ↗</a></div>`:''}
-        </div>
-      </div>
-      <div class="inv-actions">
-        <button class="btn-small del" onclick="delInv(${inv.seq})">Eliminar del historial</button>
-      </div>
-    </div>`).join('');
-}
-
-function delInv(seq) {
-  if (!confirm('¿Eliminar esta entrada del historial local?')) return;
-  invoices = invoices.filter(i=>!(i.seq===seq&&i.year===YEAR));
-  saveData(SK_INV, invoices);
-  document.getElementById('f-num').value = fmtNum(nextSeq());
-  renderHist(); renderStats();
-}
-
-function renderStats() {
-  const yr=invoices.filter(i=>i.year===YEAR);
-  const base=yr.reduce((s,i)=>s+(i.base||0),0);
-  const total=yr.reduce((s,i)=>s+(i.total||0),0);
-  document.getElementById('stats-box').innerHTML=`
-    <div class="stat"><div class="v">${yr.length}</div><div class="l">Facturas ${YEAR}</div></div>
-    <div class="stat"><div class="v">${fmtN(base)} €</div><div class="l">Base acumulada</div></div>
-    <div class="stat"><div class="v">${fmtN(total)} €</div><div class="l">Total cobrado</div></div>
-    <div class="stat"><div class="v">${clients.length}</div><div class="l">Clientes guardados</div></div>`;
-}
-
-function fmtMoney(n) { return fmtN(n)+' €'; }
-function fmtN(n) { return (n||0).toFixed(2).replace('.',','); }
-function esc(s) { return (s||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
-function toast(msg,ok) {
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.className='show'+(ok===true?' ok':ok===false?' warn':'');
-  setTimeout(()=>t.className='',4000);
-}
-
-// ── INIT ──────────────────────────────────────────────────────────────────────
+/* init */
 checkOAuthCallback();
-document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
-document.getElementById('f-num').value  = fmtNum(nextSeq());
-document.getElementById('yr-lbl').textContent = YEAR;
-renderLines(); renderHist(); renderStats();
-initDrive();
+loadLocal();
+seedIfEmpty();
+render();
+window.addEventListener("load",()=>{ initAuth(); });
 </script>
-
-<!-- Drive + Sheets configurados. Client ID activo. -->
 </body>
 </html>
