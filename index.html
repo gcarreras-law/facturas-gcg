@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Despacho · GCG</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Despacho">
+<meta name="theme-color" content="#1E353B">
+<link rel="apple-touch-icon" href="data:image/png;base64,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">
+<link rel="icon" type="image/png" href="data:image/png;base64,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">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -333,6 +340,63 @@ td .acts{display:flex;gap:2px;justify-content:flex-end}
 .invdel{margin-top:8px;font-size:11px;color:var(--ink-faint);background:none;border:1px solid var(--line);border-radius:5px;padding:3px 9px}
 .invdel:hover{border-color:var(--urgent);color:var(--urgent)}
 @media(max-width:920px){.fac-layout{grid-template-columns:1fr}}
+
+/* ===================== CALENDARIO (semana / mes) ===================== */
+.cal-bar{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.cal-nav{display:flex;align-items:center;gap:4px}
+.cal-nav button{width:32px;height:32px;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;color:var(--ink-soft)}
+.cal-nav button:hover{border-color:var(--brand);color:var(--brand)}
+.cal-nav button svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
+.cal-today{padding:7px 13px;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius-sm);font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+.cal-today:hover{border-color:var(--brand);color:var(--brand)}
+.cal-period{font-family:"Newsreader",serif;font-size:20px;font-weight:500;text-transform:capitalize;color:var(--ink)}
+.cal-spacer{flex:1}
+.cal-import{font-size:12px;color:var(--brand);background:none;border:none;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.cal-import:hover{text-decoration:underline}
+.cal-import svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+
+.cal-dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-bottom:6px}
+.cal-dow span{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-faint);text-align:center;padding:2px}
+.cal-month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));grid-auto-rows:minmax(94px,1fr);gap:6px}
+.cal-cell{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:6px 6px 4px;display:flex;flex-direction:column;gap:3px;min-height:94px;min-width:0;cursor:pointer;transition:border-color .12s}
+.cal-cell:hover{border-color:var(--line-strong)}
+.cal-cell.other{background:var(--surface-2);opacity:.55}
+.cal-cell.today{border-color:var(--brand);box-shadow:inset 0 0 0 1px var(--brand)}
+.cal-cell .dnum{font-size:12px;font-weight:600;color:var(--ink-soft);align-self:flex-start;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:6px}
+.cal-cell.today .dnum{background:var(--brand);color:#fff}
+.cal-ev{font-size:11px;line-height:1.3;padding:2px 6px;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--brand-tint);color:var(--brand);border-left:2px solid var(--brand)}
+.cal-ev.t-plazo{background:var(--urgent-tint);color:var(--urgent);border-color:var(--urgent)}
+.cal-ev.t-vista{background:#EDE6F3;color:#6B4E8C;border-color:#6B4E8C}
+.cal-ev.t-llamada{background:var(--ok-tint);color:var(--ok);border-color:var(--ok)}
+.cal-ev.is-tarea{background:var(--soon-tint);color:var(--soon);border-color:var(--soon);border-left-style:dashed}
+.cal-ev .tm{font-family:"JetBrains Mono",monospace;font-size:10px;opacity:.85;margin-right:3px}
+.cal-more{font-size:10.5px;color:var(--ink-faint);padding:1px 6px;font-weight:600}
+
+.cal-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.cal-col{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);min-height:160px;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.cal-col.today{border-color:var(--brand)}
+.cal-col .ch{padding:8px 6px;text-align:center;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.cal-col.today .ch{background:var(--brand-tint)}
+.cal-col .ch .d1{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);font-weight:700}
+.cal-col .ch .d2{font-family:"Newsreader",serif;font-size:19px;font-weight:500;color:var(--ink)}
+.cal-col.today .ch .d2{color:var(--brand)}
+.cal-col .cbody{padding:6px;display:flex;flex-direction:column;gap:4px;flex:1}
+.cal-col .cadd{font-size:16px;color:var(--ink-faint);border:none;background:none;padding:2px;align-self:center;margin-top:auto;opacity:0;transition:opacity .12s}
+.cal-col:hover .cadd{opacity:1}
+.cal-col .cadd:hover{color:var(--brand)}
+.cal-wk-ev{font-size:11.5px;line-height:1.35;padding:5px 7px;border-radius:5px;cursor:pointer;background:var(--brand-tint);color:var(--brand);border-left:3px solid var(--brand)}
+.cal-wk-ev.t-plazo{background:var(--urgent-tint);color:var(--urgent);border-color:var(--urgent)}
+.cal-wk-ev.t-vista{background:#EDE6F3;color:#6B4E8C;border-color:#6B4E8C}
+.cal-wk-ev.t-llamada{background:var(--ok-tint);color:var(--ok);border-color:var(--ok)}
+.cal-wk-ev.is-tarea{background:var(--soon-tint);color:var(--soon);border-color:var(--soon);border-left-style:dashed}
+.cal-wk-ev .wt{font-weight:600;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-wk-ev .wm{font-size:10px;opacity:.8}
+@media(max-width:920px){
+  .cal-month{grid-auto-rows:minmax(64px,1fr)}.cal-cell{min-height:64px}
+  .cal-ev .tm{display:none}
+  .cal-week{grid-template-columns:1fr;gap:8px}
+  .cal-col{min-height:auto}
+}
 </style>
 </head>
 <body>
@@ -437,6 +501,8 @@ let state = { clientes:[], tareas:[], agenda:[], facturas:[] };
 let view = "hoy";
 let selectedCliente = null;
 let filters = { tareas:{ q:"", estado:"abiertas" } };
+let agendaView = "lista";        // lista | dia | semana | mes
+let agendaRef = null;            // fecha de referencia (se fija en init)
 let gAuth = { token:null, connected:false, email:"" };
 let _dataSheetId = localStorage.getItem(DATA_SHEET_KEY) || null;
 let syncTimer = null;
@@ -455,6 +521,17 @@ function dueLabel(iso){ const n=daysUntil(iso); if(n===null) return ""; if(n<0) 
 function initials(nm){ return (nm||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase(); }
 function clienteById(id){ return state.clientes.find(c=>c.id===id); }
 function clienteNombre(id){ const c=clienteById(id); return c?c.nombre:""; }
+/* helpers de calendario */
+function isoOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function addDaysISO(iso,n){ const d=parseISO(iso); d.setDate(d.getDate()+n); return isoOf(d); }
+function addMonthsISO(iso,n){ const d=parseISO(iso); d.setMonth(d.getMonth()+n); return isoOf(d); }
+function startOfWeekISO(iso){ const d=parseISO(iso); const wd=(d.getDay()+6)%7; d.setDate(d.getDate()-wd); return isoOf(d); } // lunes
+function dayEntries(iso){
+  const evs=state.agenda.filter(a=>a.fecha===iso).map(a=>({kind:"evento",ref:a,hora:a.hora||"",titulo:a.titulo,tipo:(a.tipo||"otro")}));
+  const tas=state.tareas.filter(t=>t.estado!=="hecha"&&t.vencimiento===iso).map(t=>({kind:"tarea",ref:t,hora:"",titulo:t.titulo,tipo:"tarea"}));
+  return [...evs,...tas].sort((a,b)=>(a.hora||"99").localeCompare(b.hora||"99"));
+}
+function openEntry(e){ if(e.kind==="tarea") editTask(e.ref.id); else editEvento(e.ref.id); }
 function fmtN(n){ return (Number(n)||0).toFixed(2).replace(".",","); }
 function fmtMoney(n){ return fmtN(n)+" €"; }
 
@@ -863,28 +940,110 @@ function renderTareasRows(){
 function setTarFilter(v){ filters.tareas.estado=v; renderTareas(); }
 
 /* ---------- AGENDA ---------- */
+const DOW=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 function renderAgenda(){
-  const futuros = state.agenda.filter(a=>a.fecha>=todayISO()).sort((a,b)=>(a.fecha+(a.hora||"")).localeCompare(b.fecha+(b.hora||"")));
-  const pasados = state.agenda.filter(a=>a.fecha<todayISO()).sort((a,b)=>(b.fecha+(b.hora||"")).localeCompare(a.fecha+(a.hora||"")));
-  // agrupar futuros por fecha
-  const groups={};
-  futuros.forEach(a=>{ (groups[a.fecha]=groups[a.fecha]||[]).push(a); });
-  const dayBlocks = Object.keys(groups).sort().map(date=>{
-    const d=parseISO(date); const n=daysUntil(date);
-    const rel = n===0?"Hoy":n===1?"Mañana":fmtDateLong(d);
-    return `<div class="block" style="margin-bottom:16px">
-      <header><span class="rail r-brand"></span><span class="label">${rel}</span><span class="tag">${fmtDateShort(date)}</span></header>
-      <div class="body">${groups[date].map(eventRow).join("")}</div>
-    </div>`;
-  }).join("");
+  if(!agendaRef) agendaRef=todayISO();
+  let period="";
+  if(agendaView==="dia"){ const d=parseISO(agendaRef); period=d.toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"}); }
+  else if(agendaView==="semana"){ const a=startOfWeekISO(agendaRef), b=addDaysISO(a,6); const da=parseISO(a),db=parseISO(b); period=`${da.getDate()} ${da.toLocaleDateString("es-ES",{month:"short"})} – ${db.getDate()} ${db.toLocaleDateString("es-ES",{month:"short"})}`; }
+  else if(agendaView==="mes"){ period=parseISO(agendaRef).toLocaleDateString("es-ES",{month:"long",year:"numeric"}); }
+  else period="Próximas citas";
+
+  const seg=(v,l)=>`<button class="${agendaView===v?'on':''}" onclick="setAgendaView('${v}')">${l}</button>`;
+  const nav = agendaView==="lista" ? "" :
+    `<div class="cal-nav"><button onclick="agendaStep(-1)" aria-label="Anterior"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button onclick="agendaStep(1)" aria-label="Siguiente"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button></div>
+     <button class="cal-today" onclick="agendaToday()">Hoy</button>`;
+
+  let bodyHtml="";
+  if(agendaView==="mes") bodyHtml=monthHtml();
+  else if(agendaView==="semana") bodyHtml=weekHtml();
+  else if(agendaView==="dia") bodyHtml=dayHtml();
+  else bodyHtml=listHtml();
+
   $("#content").innerHTML=`
-    <div class="toolbar" style="justify-content:flex-end;margin-bottom:14px">
-      <button class="seg" style="display:inline-flex" onclick="importCalendar()"><span style="padding:8px 13px;display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:500;color:var(--ink-soft)"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M12 12v5M9.5 14.5h5"/></svg>Importar de Google Calendar</span></button>
+    <div class="cal-bar">
+      <div class="seg">${seg('dia','Día')}${seg('semana','Semana')}${seg('mes','Mes')}${seg('lista','Lista')}</div>
+      ${nav}
+      <div class="cal-period">${esc(period)}</div>
+      <div class="cal-spacer"></div>
+      <button class="cal-import" onclick="importCalendar()"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="M12 12v5M9.5 14.5h5"/></svg>Importar de Calendar</button>
     </div>
-    ${futuros.length?dayBlocks:`<div class="block"><div class="body">${emptyMsg("Agenda vacía","Añade vistas, plazos o reuniones con “Nuevo evento”, o impórtalas de tu Google Calendar.")}</div></div>`}
-    ${pasados.length?`<div class="section-head" style="padding-left:0;margin-top:18px"><span class="label">Pasados</span></div>
-      <div class="block"><div class="body">${pasados.slice(0,15).map(eventRow).join("")}</div></div>`:""}`;
+    ${bodyHtml}`;
 }
+function setAgendaView(v){ agendaView=v; if(!agendaRef||v!=="lista") agendaRef=agendaRef||todayISO(); render(); }
+function agendaToday(){ agendaRef=todayISO(); render(); }
+function agendaStep(dir){
+  if(agendaView==="dia") agendaRef=addDaysISO(agendaRef,dir);
+  else if(agendaView==="semana") agendaRef=addDaysISO(agendaRef,7*dir);
+  else if(agendaView==="mes") agendaRef=addMonthsISO(agendaRef,dir);
+  render();
+}
+
+/* ---- LISTA (próximas + pasadas, como antes) ---- */
+function listHtml(){
+  const futuros=state.agenda.filter(a=>a.fecha>=todayISO()).sort((a,b)=>(a.fecha+(a.hora||"")).localeCompare(b.fecha+(b.hora||"")));
+  const pasados=state.agenda.filter(a=>a.fecha<todayISO()).sort((a,b)=>(b.fecha+(b.hora||"")).localeCompare(a.fecha+(a.hora||"")));
+  const groups={}; futuros.forEach(a=>{ (groups[a.fecha]=groups[a.fecha]||[]).push(a); });
+  const dayBlocks=Object.keys(groups).sort().map(date=>{
+    const d=parseISO(date),n=daysUntil(date); const rel=n===0?"Hoy":n===1?"Mañana":fmtDateLong(d);
+    return `<div class="block" style="margin-bottom:16px"><header><span class="rail r-brand"></span><span class="label">${rel}</span><span class="tag">${fmtDateShort(date)}</span></header><div class="body">${groups[date].map(eventRow).join("")}</div></div>`;
+  }).join("");
+  return `${futuros.length?dayBlocks:`<div class="block"><div class="body">${emptyMsg("Agenda vacía","Añade vistas, plazos o reuniones con “Nuevo evento”, o impórtalas de tu Google Calendar.")}</div></div>`}
+    ${pasados.length?`<div class="section-head" style="padding-left:0;margin-top:18px"><span class="label">Pasados</span></div><div class="block"><div class="body">${pasados.slice(0,15).map(eventRow).join("")}</div></div>`:""}`;
+}
+
+/* ---- DÍA ---- */
+function dayHtml(){
+  const items=dayEntries(agendaRef);
+  return `<div class="block"><div class="body">${
+    items.length ? items.map(e=>e.kind==="tarea"?taskRow(e.ref):eventRow(e.ref)).join("")
+    : emptyMsg("Día despejado","Nada en la agenda para este día.")
+  }</div></div>
+  <button class="laddline" style="max-width:260px;margin-top:14px" onclick="newEventoOn('${agendaRef}')">+ Nuevo evento este día</button>`;
+}
+
+/* ---- SEMANA ---- */
+function weekHtml(){
+  const start=startOfWeekISO(agendaRef);
+  let cols="";
+  for(let i=0;i<7;i++){
+    const iso=addDaysISO(start,i), d=parseISO(iso), isToday=iso===todayISO();
+    const items=dayEntries(iso);
+    cols+=`<div class="cal-col ${isToday?'today':''}">
+      <div class="ch"><div class="d1">${DOW[i]}</div><div class="d2">${d.getDate()}</div></div>
+      <div class="cbody">
+        ${items.map(e=>`<div class="cal-wk-ev ${entryCls(e)}" onclick="${e.kind==='tarea'?`editTask('${e.ref.id}')`:`editEvento('${e.ref.id}')`}"><span class="wt">${esc(e.titulo)}</span>${e.hora?`<span class="wm">${esc(e.hora)}</span>`:e.kind==="tarea"?`<span class="wm">tarea</span>`:""}</div>`).join("")}
+        <button class="cadd" onclick="newEventoOn('${iso}')">+</button>
+      </div></div>`;
+  }
+  return `<div class="cal-week">${cols}</div>`;
+}
+
+/* ---- MES ---- */
+function monthHtml(){
+  const first=agendaRef.slice(0,8)+"01";
+  const gridStart=startOfWeekISO(first);
+  const refMonth=parseISO(agendaRef).getMonth();
+  let cells="";
+  for(let i=0;i<42;i++){
+    const iso=addDaysISO(gridStart,i), d=parseISO(iso);
+    const other=d.getMonth()!==refMonth, isToday=iso===todayISO();
+    const items=dayEntries(iso);
+    const shown=items.slice(0,3).map(e=>`<div class="cal-ev ${entryCls(e)}" onclick="event.stopPropagation();${e.kind==='tarea'?`editTask('${e.ref.id}')`:`editEvento('${e.ref.id}')`}">${e.hora?`<span class="tm">${esc(e.hora)}</span>`:""}${esc(e.titulo)}</div>`).join("");
+    const more=items.length>3?`<div class="cal-more">+${items.length-3} más</div>`:"";
+    cells+=`<div class="cal-cell ${other?'other':''} ${isToday?'today':''}" onclick="newEventoOn('${iso}')">
+      <span class="dnum">${d.getDate()}</span>${shown}${more}</div>`;
+  }
+  return `<div class="cal-dow">${DOW.map(x=>`<span>${x}</span>`).join("")}</div><div class="cal-month">${cells}</div>`;
+}
+function entryCls(e){
+  if(e.kind==="tarea") return "is-tarea";
+  const t=(e.tipo||"otro").toLowerCase();
+  return ["plazo","vista","llamada"].includes(t)?("t-"+t):"";
+}
+function newEventoOn(iso){ editEvento(null,"",iso); }
+
 
 /* ===================== FACTURAS ===================== */
 let facLines=[{desc:"",qty:1,price:""}];
@@ -1319,8 +1478,8 @@ function delTask(id){ state.tareas=state.tareas.filter(t=>t.id!==id); closeModal
 
 /* EVENTO */
 function newEvento(clienteId){ editEvento(null,clienteId); }
-function editEvento(id,preCliente){
-  const a=id?state.agenda.find(x=>x.id===id):{clienteId:preCliente||"",fecha:todayISO(),tipo:"Reunión"};
+function editEvento(id,preCliente,preFecha){
+  const a=id?state.agenda.find(x=>x.id===id):{clienteId:preCliente||"",fecha:preFecha||todayISO(),tipo:"Reunión"};
   const tipos=["Vista","Plazo","Reunión","Llamada","Otro"];
   const synced=!!a.gcalId;
   openModal(`<div class="modal"><header><h3>${id?'Editar evento':'Nuevo evento'}</h3><button class="icon-btn" onclick="closeModal()"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
