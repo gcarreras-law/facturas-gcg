@@ -487,17 +487,18 @@ const EMISOR = {
 const DRIVE = { declaracionesId:"1pdDKNN8mD2v4GA1xkx6-10OpjwweNPRG", knownFolders:{ "2026-2T":"1ovf-vY1lGtyD6N2FkwbF7Q31FbyrpXXv" } };
 
 const YEAR = new Date().getFullYear();
-const TABS = { clientes:"Clientes", tareas:"Tareas", agenda:"Agenda", facturas:"Facturas" };
+const TABS = { clientes:"Clientes", tareas:"Tareas", agenda:"Agenda", facturas:"Facturas", borrados:"Borrados" };
 const HEADERS = {
-  clientes:["id","nombre","referencia","nif","direccionFiscal","email","telefono","estado","notas","ivaDefecto","irpfDefecto","creado"],
-  tareas:["id","clienteId","titulo","detalle","prioridad","estado","vencimiento","creado","completadoEn"],
-  agenda:["id","clienteId","titulo","tipo","fecha","hora","lugar","notas","gcalId"],
-  facturas:["seq","year","num","date","clienteId","clientName","clientNif","concepto","base","iva","irpf","ivaPct","irpfPct","total","driveUrl"]
+  clientes:["id","nombre","referencia","nif","direccionFiscal","email","telefono","estado","notas","ivaDefecto","irpfDefecto","creado","mod"],
+  tareas:["id","clienteId","titulo","detalle","prioridad","estado","vencimiento","creado","completadoEn","mod"],
+  agenda:["id","clienteId","titulo","tipo","fecha","hora","lugar","notas","gcalId","mod"],
+  facturas:["seq","year","num","date","clienteId","clientName","clientNif","concepto","base","iva","irpf","ivaPct","irpfPct","total","driveUrl"],
+  borrados:["id","ts"]
 };
-const NUMFIELDS = { facturas:["seq","year","base","iva","irpf","ivaPct","irpfPct","total"] };
+const NUMFIELDS = { facturas:["seq","year","base","iva","irpf","ivaPct","irpfPct","total"], clientes:["mod"], tareas:["mod"], agenda:["mod"], borrados:["ts"] };
 
 /* ===================== ESTADO ===================== */
-let state = { clientes:[], tareas:[], agenda:[], facturas:[] };
+let state = { clientes:[], tareas:[], agenda:[], facturas:[], borrados:[] };
 let view = "hoy";
 let selectedCliente = null;
 let filters = { tareas:{ q:"", estado:"abiertas" } };
@@ -537,7 +538,7 @@ function fmtMoney(n){ return fmtN(n)+" €"; }
 
 /* ===================== PERSISTENCIA LOCAL ===================== */
 function saveLocal(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
-function loadLocal(){ try{ const r=localStorage.getItem(STORE_KEY); if(r){ const d=JSON.parse(r); state={clientes:d.clientes||[],tareas:d.tareas||[],agenda:d.agenda||[],facturas:d.facturas||[]}; } }catch(e){} }
+function loadLocal(){ try{ const r=localStorage.getItem(STORE_KEY); if(r){ const d=JSON.parse(r); state={clientes:d.clientes||[],tareas:d.tareas||[],agenda:d.agenda||[],facturas:d.facturas||[],borrados:d.borrados||[]}; } }catch(e){} }
 function commit(){ saveLocal(); render(); scheduleSync(); }
 
 /* ===================== AUTENTICACIÓN GOOGLE (compartida) =====================
@@ -605,53 +606,88 @@ async function ensureTabs(sid){
 }
 function rowsFor(kind){ return [HEADERS[kind], ...state[kind].map(o=>HEADERS[kind].map(h=>o[h]==null?"":String(o[h])))]; }
 
-async function pushData(){
-  if(!gAuth.connected) return;
-  setSync("busy");
-  try{
-    const sid=await getOrCreateDataSheet(); await ensureTabs(sid);
-    for(const kind of Object.keys(TABS)){
-      await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(TABS[kind])}!A:Z:clear`,{method:"POST",body:"{}"});
-    }
-    await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchUpdate`,{method:"POST",body:JSON.stringify({
-      valueInputOption:"RAW",
-      data:Object.keys(TABS).map(kind=>({range:`${TABS[kind]}!A1`,values:rowsFor(kind)}))
-    })});
-    setSync("ok");
-  }catch(e){ console.error(e); setSync("error"); }
+/* ---- FUSIÓN (merge) sin pérdida de datos ----
+   Cada registro lleva 'mod' (instante de última edición). Al fusionar dos
+   versiones gana la más reciente; los borrados se registran como "tombstone"
+   en la pestaña Borrados para que se propaguen sin resucitar lo eliminado. */
+function recMod(o){ return Number(o&&o.mod)||0; }
+function mergeById(localArr, remoteArr, tomb){
+  const map={};
+  [...(remoteArr||[]), ...(localArr||[])].forEach(o=>{ if(!o||!o.id) return; const ex=map[o.id]; if(!ex||recMod(o)>=recMod(ex)) map[o.id]=o; });
+  if(tomb) Object.keys(tomb).forEach(id=>{ if(map[id]&&recMod(map[id])<=tomb[id]) delete map[id]; });
+  return Object.values(map);
 }
-async function pullData(silent){
-  if(!gAuth.connected) return;
-  setSync("busy");
-  try{
-    const sid=await getOrCreateDataSheet(); await ensureTabs(sid);
-    const ranges=Object.values(TABS).map(t=>`ranges=${encodeURIComponent(t)}!A:Z`).join("&");
-    const res=await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchGet?${ranges}`);
-    const got={};
-    (res.valueRanges||[]).forEach(vr=>{
-      const tab=decodeURIComponent(vr.range.split("!")[0].replace(/'/g,""));
-      const kind=Object.keys(TABS).find(k=>TABS[k]===tab);
-      if(!kind) return;
-      const [head,...rows]=vr.values||[[]];
-      got[kind]=(rows||[]).filter(r=>r[0]!=null&&r[0]!=="").map(r=>{
-        const o={}; (head||HEADERS[kind]).forEach((h,i)=>o[h]=r[i]??"");
-        (NUMFIELDS[kind]||[]).forEach(f=>{ o[f]=Number(o[f])||0; });
-        return o;
-      });
+function facKey(f){ return Number(f.year)+"-"+Number(f.seq); }
+function mergeFacturas(localArr, remoteArr, tomb){
+  const map={};
+  [...(remoteArr||[]), ...(localArr||[])].forEach(f=>{ if(f) map[facKey(f)]=f; });
+  if(tomb) Object.keys(tomb).forEach(id=>{ if(id.indexOf("fac:")===0){ const k=id.slice(4); if(map[k]) delete map[k]; } });
+  return Object.values(map);
+}
+function mergeDeleted(a,b){
+  const m={};
+  [...(a||[]), ...(b||[])].forEach(d=>{ if(!d||!d.id) return; const ts=Number(d.ts)||0; if(!m[d.id]||ts>m[d.id]) m[d.id]=ts; });
+  return Object.keys(m).map(id=>({id,ts:m[id]}));
+}
+function mergeStates(local, remote, applyTomb){
+  const borrados=mergeDeleted(local.borrados, remote.borrados);
+  let tomb=null;
+  if(applyTomb){ tomb={}; borrados.forEach(d=>{ tomb[d.id]=Number(d.ts)||0; }); }
+  return {
+    clientes:mergeById(local.clientes, remote.clientes, tomb),
+    tareas:mergeById(local.tareas, remote.tareas, tomb),
+    agenda:mergeById(local.agenda, remote.agenda, tomb),
+    facturas:mergeFacturas(local.facturas, remote.facturas, tomb),
+    borrados
+  };
+}
+function tombstone(id){ (state.borrados=state.borrados||[]).push({id,ts:Date.now()}); }
+function stampMod(o){ o.mod=Date.now(); return o; }
+
+async function readRemote(sid){
+  const ranges=Object.values(TABS).map(t=>`ranges=${encodeURIComponent(t)}!A:Z`).join("&");
+  const res=await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchGet?${ranges}`);
+  const got={clientes:[],tareas:[],agenda:[],facturas:[],borrados:[]};
+  (res.valueRanges||[]).forEach(vr=>{
+    const tab=decodeURIComponent(vr.range.split("!")[0].replace(/'/g,""));
+    const kind=Object.keys(TABS).find(k=>TABS[k]===tab); if(!kind) return;
+    const [head,...rows]=vr.values||[[]];
+    got[kind]=(rows||[]).filter(r=>r[0]!=null&&r[0]!=="").map(r=>{
+      const o={}; (head||HEADERS[kind]).forEach((h,i)=>o[h]=r[i]??"");
+      (NUMFIELDS[kind]||[]).forEach(f=>{ o[f]=Number(o[f])||0; });
+      return o;
     });
-    const hasRemote=Object.values(got).some(arr=>arr&&arr.length);
-    if(hasRemote){
-      Object.keys(TABS).forEach(k=>{ if(got[k]) state[k]=got[k]; });
-      saveLocal(); render();
-      if(!silent) toast("Datos cargados desde Google");
-    } else { await pushData(); }
-    setSync("ok");
-  }catch(e){ console.error(e); setSync("error"); if(!silent) toast("No se pudo cargar de Google","err"); }
+  });
+  return got;
 }
+async function writeRemote(sid){
+  for(const kind of Object.keys(TABS)){
+    await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(TABS[kind])}!A:Z:clear`,{method:"POST",body:"{}"});
+  }
+  await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchUpdate`,{method:"POST",body:JSON.stringify({
+    valueInputOption:"RAW",
+    data:Object.keys(TABS).map(kind=>({range:`${TABS[kind]}!A1`,values:rowsFor(kind)}))
+  })});
+}
+/* reconcile: lee la nube, FUSIONA con lo local (nunca pisa), y reescribe el resultado */
+async function reconcile(write, silent){
+  if(!gAuth.connected) return;
+  setSync("busy");
+  try{
+    const sid=await getOrCreateDataSheet(); await ensureTabs(sid);
+    const remote=await readRemote(sid);
+    state=mergeStates(state, remote, true);
+    saveLocal(); render();
+    if(write) await writeRemote(sid);
+    setSync("ok");
+    if(!silent) toast("Sincronizado con Google");
+  }catch(e){ console.error(e); setSync("error"); if(!silent) toast("No se pudo sincronizar","err"); }
+}
+function pullData(silent){ return reconcile(true, silent); }
 function scheduleSync(){
   if(!gAuth.connected) return;
   clearTimeout(syncTimer); setSync("busy");
-  syncTimer=setTimeout(pushData,1500);
+  syncTimer=setTimeout(()=>reconcile(true,true),1500);
 }
 function setSync(s){
   const dot=$("#sync-dot"), txt=$("#sync-txt"); dot.className="dot";
@@ -718,7 +754,7 @@ async function importCalendar(){
       const fecha=(start.dateTime||start.date||"").slice(0,10);
       const hora=start.dateTime?start.dateTime.slice(11,16):"";
       if(!fecha) return;
-      state.agenda.push({ id:uid(), clienteId:"", titulo:it.summary||"(sin título)", tipo:"Otro", fecha, hora, lugar:it.location||"", notas:it.description||"", gcalId:it.id });
+      state.agenda.push(stampMod({ id:uid(), clienteId:"", titulo:it.summary||"(sin título)", tipo:"Otro", fecha, hora, lugar:it.location||"", notas:it.description||"", gcalId:it.id }));
       added++;
     });
     if(added){ commit(); toast(`${added} cita(s) importada(s) de Calendar`); }
@@ -1379,11 +1415,12 @@ function renderFacHist(){
 function delFactura(seq){
   if(!confirm("¿Eliminar esta factura del historial de la app? (No borra el PDF de Drive ni la fila de contabilidad.)")) return;
   state.facturas=state.facturas.filter(i=>!(Number(i.seq)===seq&&Number(i.year)===YEAR));
+  tombstone("fac:"+YEAR+"-"+seq);
   commit(); $("#fac-num") && ($("#fac-num").value=fmtNum(nextSeq()));
 }
 
 /* ===================== ACCIONES CRUD ===================== */
-function toggleTask(id){ const t=state.tareas.find(x=>x.id===id); if(!t)return; t.estado=t.estado==='hecha'?'abierta':'hecha'; t.completadoEn=t.estado==='hecha'?todayISO():""; commit(); }
+function toggleTask(id){ const t=state.tareas.find(x=>x.id===id); if(!t)return; t.estado=t.estado==='hecha'?'abierta':'hecha'; t.completadoEn=t.estado==='hecha'?todayISO():""; stampMod(t); commit(); }
 function selectCliente(id){ selectedCliente=id; renderClientes(); }
 function go(v){ setView(v); }
 
@@ -1431,15 +1468,15 @@ function saveCliente(id){
   const data={ nombre, referencia:$("#f-ref").value.trim(), estado:$("#f-estado").value.trim(), email:$("#f-email").value.trim(), telefono:$("#f-tel").value.trim(), notas:$("#f-notas").value.trim(),
     nif:$("#f-nif").value.trim(), direccionFiscal:$("#f-dir").value.trim(),
     ivaDefecto:parseFloat($("#f-ivad").value)||0, irpfDefecto:parseFloat($("#f-irpfd").value)||0 };
-  if(id){ Object.assign(clienteById(id),data); }
-  else { const c={id:uid(),...data,creado:todayISO()}; state.clientes.push(c); selectedCliente=c.id; }
+  if(id){ Object.assign(clienteById(id),data); stampMod(clienteById(id)); }
+  else { const c=stampMod({id:uid(),...data,creado:todayISO()}); state.clientes.push(c); selectedCliente=c.id; }
   closeModal(); commit(); toast("Cliente guardado");
 }
 function delCliente(id){
   if(!confirm("¿Eliminar este cliente? Sus tareas y citas quedarán sin asignar.")) return;
-  state.clientes=state.clientes.filter(c=>c.id!==id);
-  state.tareas.forEach(t=>{ if(t.clienteId===id)t.clienteId=""; });
-  state.agenda.forEach(a=>{ if(a.clienteId===id)a.clienteId=""; });
+  state.clientes=state.clientes.filter(c=>c.id!==id); tombstone(id);
+  state.tareas.forEach(t=>{ if(t.clienteId===id){ t.clienteId=""; stampMod(t); } });
+  state.agenda.forEach(a=>{ if(a.clienteId===id){ a.clienteId=""; stampMod(a); } });
   if(selectedCliente===id) selectedCliente=state.clientes[0]?state.clientes[0].id:null;
   closeModal(); commit(); toast("Cliente eliminado");
 }
@@ -1470,11 +1507,11 @@ function saveTask(id){
   const titulo=$("#f-titulo").value.trim();
   if(!titulo){ toast("Escribe el título de la tarea","err"); return; }
   const data={ titulo, clienteId:$("#f-cliente").value, prioridad:$("#f-pri").value, vencimiento:$("#f-venc").value, detalle:$("#f-detalle").value.trim() };
-  if(id){ Object.assign(state.tareas.find(x=>x.id===id),data); }
-  else { state.tareas.push({id:uid(),...data,estado:"abierta",creado:todayISO(),completadoEn:""}); }
+  if(id){ Object.assign(state.tareas.find(x=>x.id===id),data); stampMod(state.tareas.find(x=>x.id===id)); }
+  else { state.tareas.push(stampMod({id:uid(),...data,estado:"abierta",creado:todayISO(),completadoEn:""})); }
   closeModal(); commit(); toast("Tarea guardada");
 }
-function delTask(id){ state.tareas=state.tareas.filter(t=>t.id!==id); closeModal(); commit(); toast("Tarea eliminada"); }
+function delTask(id){ state.tareas=state.tareas.filter(t=>t.id!==id); tombstone(id); closeModal(); commit(); toast("Tarea eliminada"); }
 
 /* EVENTO */
 function newEvento(clienteId){ editEvento(null,clienteId); }
@@ -1514,16 +1551,17 @@ async function saveEvento(id){
   let ev;
   if(id){ ev=state.agenda.find(x=>x.id===id); Object.assign(ev,data); }
   else { ev={id:uid(),...data,gcalId:""}; state.agenda.push(ev); }
+  stampMod(ev);
   closeModal(); commit(); toast("Evento guardado");
   if(gAuth.connected){
     if(wantCal){ await upsertCalendarEvent(ev); }
-    else if(ev.gcalId){ await deleteCalendarEvent(ev.gcalId); ev.gcalId=""; saveLocal(); commit(); }
+    else if(ev.gcalId){ await deleteCalendarEvent(ev.gcalId); ev.gcalId=""; stampMod(ev); saveLocal(); commit(); }
   }
 }
 async function delEvento(id){
   const ev=state.agenda.find(a=>a.id===id);
   const gid=ev&&ev.gcalId;
-  state.agenda=state.agenda.filter(a=>a.id!==id);
+  state.agenda=state.agenda.filter(a=>a.id!==id); tombstone(id);
   closeModal(); commit(); toast("Evento eliminado");
   if(gid) await deleteCalendarEvent(gid);
 }
@@ -1556,7 +1594,26 @@ function exportJSON(){
 }
 function importJSON(input){
   const file=input.files[0]; if(!file)return;
-  const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result); state={clientes:d.clientes||[],tareas:d.tareas||[],agenda:d.agenda||[],facturas:d.facturas||[]}; closeModal(); commit(); toast("Copia importada"); }catch(e){ toast("Archivo no válido","err"); } }; r.readAsText(file);
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      const incoming={clientes:d.clientes||[],tareas:d.tareas||[],agenda:d.agenda||[],facturas:d.facturas||[],borrados:d.borrados||[]};
+      const nC=incoming.clientes.length, nT=incoming.tareas.length, nA=incoming.agenda.length;
+      const replace=confirm(`La copia contiene ${nC} clientes, ${nT} tareas y ${nA} citas.\n\nAceptar = FUSIONAR (recomendado): se añade y actualiza sin borrar nada de lo que ya tienes.\nCancelar = volver sin importar.`);
+      if(!replace) return;
+      // fusión aditiva: nunca elimina registros existentes
+      state={
+        clientes:mergeById(state.clientes, incoming.clientes, null),
+        tareas:mergeById(state.tareas, incoming.tareas, null),
+        agenda:mergeById(state.agenda, incoming.agenda, null),
+        facturas:mergeFacturas(state.facturas, incoming.facturas, null),
+        borrados:mergeDeleted(state.borrados, incoming.borrados)
+      };
+      closeModal(); commit(); toast("Copia fusionada · no se ha borrado nada");
+    }catch(e){ toast("Archivo no válido","err"); }
+  };
+  r.readAsText(file);
 }
 
 /* ===================== TOAST ===================== */
