@@ -484,7 +484,11 @@ const EMISOR = {
   icab:"48490", iban:"ES37 0182 1294 1502 0168 5255"
 };
 /* Carpeta de Drive donde se archivan los PDF y el Excel de contabilidad */
-const DRIVE = { declaracionesId:"1pdDKNN8mD2v4GA1xkx6-10OpjwweNPRG", knownFolders:{ "2026-2T":"1ovf-vY1lGtyD6N2FkwbF7Q31FbyrpXXv" } };
+/* Nota: "knownFolders" es solo una caché en memoria para no repetir búsquedas
+   en Drive dentro de la misma sesión. NUNCA hardcodear aquí IDs de carpetas:
+   la app siempre debe localizar/crear la carpeta del trimestre correcto
+   buscando por nombre en Drive, según la fecha real de la factura. */
+const DRIVE = { declaracionesId:"1pdDKNN8mD2v4GA1xkx6-10OpjwweNPRG", knownFolders:{} };
 
 const YEAR = new Date().getFullYear();
 const TABS = { clientes:"Clientes", tareas:"Tareas", agenda:"Agenda", facturas:"Facturas", borrados:"Borrados" };
@@ -1150,7 +1154,7 @@ function renderFacturas(){
           <div class="sec-t">Observaciones</div>
           <div class="ffield"><textarea id="fac-notes" placeholder="Texto opcional que aparece al pie de la factura…"></textarea></div>
         </div>
-        <button class="fgen" id="fac-gen" onclick="generateInvoice()">Generar y descargar factura PDF</button>
+        <button class="fgen" id="fac-gen" onclick="generateInvoice()">Generar factura</button>
       </div>
       <div class="fhist">
         <div class="fstats" id="fac-stats"></div>
@@ -1288,6 +1292,19 @@ async function generateInvoice(){
   if(!facLines.some(l=>l.desc&&parseFloat(l.price)>0)){ toast("Añade al menos un concepto con importe","err"); return; }
   const btn=$("#fac-gen"); btn.disabled=true; btn.textContent="Generando…";
 
+  // Refrescamos el historial de facturas contra Google ANTES de numerar,
+  // para no repetir número si se generó otra factura desde otro dispositivo/sesión.
+  if(gAuth.connected){
+    btn.textContent="Comprobando numeración…";
+    try{
+      const sid=await getOrCreateDataSheet(); await ensureTabs(sid);
+      const remote=await readRemote(sid);
+      state=mergeStates(state, remote, false);
+      saveLocal();
+    }catch(e){ console.error("No se pudo refrescar antes de numerar:",e); }
+    btn.textContent="Generando…";
+  }
+
   const seq=nextSeq(), num=fmtNum(seq);
   const dateVal=$("#fac-date").value;
   const dateFmt=dateVal?new Date(dateVal+"T12:00:00").toLocaleDateString("es-ES",{day:"2-digit",month:"long",year:"numeric"}):"";
@@ -1344,7 +1361,7 @@ async function generateInvoice(){
   doc.text(EMISOR.nombre+" · Abogado · Colegiado ICAB nº "+EMISOR.icab,PW/2,287,{align:"center"});
 
   const filename="FACTURA - "+seq+" - "+clientName+".pdf";
-  doc.save(filename);
+  if(!gAuth.connected) doc.save(filename); // solo se descarga en local si NO hay Drive conectado (respaldo)
   const concepto=facLines.find(l=>l.desc)?.desc||"";
 
   // cliente en la cartera (actualiza o crea)
@@ -1373,8 +1390,15 @@ async function generateInvoice(){
   facLines=[{desc:"",qty:1,price:""}]; facSel=null;
   ["fac-name","fac-nif","fac-email","fac-addr","fac-notes"].forEach(id=>{ const e=$("#"+id); if(e)e.value=""; });
   $("#fac-iva").value=21; $("#fac-irpf").value=15;
-  btn.disabled=false; btn.textContent="Generar y descargar factura PDF";
-  commit();                 // guarda, sincroniza y repinta historial
+  saveLocal(); render();     // guarda local y repinta historial al instante
+  if(gAuth.connected){
+    btn.textContent="Guardando historial…";
+    clearTimeout(syncTimer);
+    try{ await reconcile(true, true); }catch(e){ console.error("No se pudo guardar el historial:",e); }
+  } else {
+    scheduleSync();
+  }
+  btn.disabled=false; btn.textContent="Generar factura";
   $("#fac-num").value=fmtNum(nextSeq());
   renderFacLines();
 }
