@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Despacho · GCG</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Despacho">
@@ -1105,7 +1108,7 @@ function renderFacturas(){
         <div class="fac-sec">
           <div class="sec-t">Datos de la factura</div>
           <div class="frow two">
-            <div class="ffield"><label>Número</label><input id="fac-num" readonly></div>
+            <div class="ffield"><label>Número</label><input id="fac-num" inputmode="numeric"></div>
             <div class="ffield"><label>Fecha de emisión</label><input id="fac-date" type="date"></div>
           </div>
         </div>
@@ -1301,11 +1304,16 @@ async function generateInvoice(){
       const remote=await readRemote(sid);
       state=mergeStates(state, remote, false);
       saveLocal();
-    }catch(e){ console.error("No se pudo refrescar antes de numerar:",e); }
+    }catch(e){ console.error("No se pudo refrescar antes de numerar:",e); toast("No se pudo comprobar el último número con Google. Revisa el número antes de generar","err"); }
     btn.textContent="Generando…";
   }
 
-  const seq=nextSeq(), num=fmtNum(seq);
+  const seq=parseInt($("#fac-num").value,10)||nextSeq(), num=fmtNum(seq);
+  if(state.facturas.some(i=>Number(i.year)===YEAR&&Number(i.seq)===seq)){
+    if(!confirm("Ya existe una factura nº "+num+" este año. ¿Seguro que quieres generar otra con el mismo número?")){
+      btn.disabled=false; btn.textContent="Generar factura"; return;
+    }
+  }
   const dateVal=$("#fac-date").value;
   const dateFmt=dateVal?new Date(dateVal+"T12:00:00").toLocaleDateString("es-ES",{day:"2-digit",month:"long",year:"numeric"}):"";
   const cNif=$("#fac-nif").value.trim(), cEmail=$("#fac-email").value.trim(), cAddr=$("#fac-addr").value.trim();
@@ -1394,7 +1402,7 @@ async function generateInvoice(){
   if(gAuth.connected){
     btn.textContent="Guardando historial…";
     clearTimeout(syncTimer);
-    try{ await reconcile(true, true); }catch(e){ console.error("No se pudo guardar el historial:",e); }
+    try{ await reconcile(true, true); }catch(e){ console.error("No se pudo guardar el historial:",e); toast("Factura generada, pero no se pudo guardar el historial en Google. Vuelve a intentarlo o revisa la conexión","err"); }
   } else {
     scheduleSync();
   }
