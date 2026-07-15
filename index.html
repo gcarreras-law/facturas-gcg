@@ -1491,6 +1491,50 @@ async function registrarCobro(seq,year){
   }
   toast("Cobro registrado"+(inv.estado==="Cobrada"?" · Factura marcada como Cobrada":""));
 }
+/* Trae a la app los cambios hechos a mano en el Excel de contabilidad
+   (importe, cliente, concepto, fecha, IVA, retención, cobros). Solo actúa
+   sobre facturas del año actual y con número (la de Julieta, "S/N", no se
+   puede casar de forma fiable y hay que ajustarla a mano si hace falta).
+   OJO: esto NO regenera el PDF ya emitido — solo actualiza el registro
+   dentro de la app. Si la factura ya se envió al cliente, corregir aquí el
+   importe/cliente/concepto no corrige el documento que él tiene. */
+function parseSpanishDate(s){
+  const m=String(s||"").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m) return null;
+  return m[3]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0");
+}
+function parseNum(s){ return parseFloat(String(s??"").replace("%","").replace(",",".")) || 0; }
+async function sincronizarDesdeExcel(){
+  if(!gAuth.connected){ toast("Conecta Google primero","err"); return; }
+  if(!confirm("Esto actualizará en la app los datos de las facturas de "+YEAR+" que hayas modificado a mano en el Excel de contabilidad (importe, cliente, concepto, fecha, IVA, retención, cobros).\n\nOJO: no modifica el PDF ya emitido, solo el registro dentro de la app.\n\n¿Continuar?")) return;
+  try{
+    const sid=await getOrCreateContaSheet();
+    const res=await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Facturas!A2:L1000`);
+    const rows=res.values||[];
+    let actualizadas=0;
+    rows.forEach(r=>{
+      const facNum=String(r[0]||"").trim();
+      if(!facNum||!/^\d+$/.test(facNum)) return; // sin número (p.ej. "SN"): no se casa de forma fiable
+      const inv=state.facturas.find(f=>Number(f.seq)===Number(facNum)&&Number(f.year)===YEAR);
+      if(!inv) return;
+      let changed=false;
+      const setIf=(field,val)=>{ if(val!==null && val!==undefined && String(inv[field])!==String(val)){ inv[field]=val; changed=true; } };
+      const fecha=parseSpanishDate(r[1]); if(fecha) setIf("date",fecha);
+      setIf("clientName",(r[2]||inv.clientName||"").trim());
+      setIf("concepto",(r[3]||"").trim());
+      setIf("base",parseNum(r[4]));
+      setIf("ivaPct",parseNum(r[5]));
+      setIf("irpfPct",parseNum(r[6]));
+      setIf("irpf",parseNum(r[7]));
+      setIf("total",parseNum(r[8]));
+      setIf("cobrado",parseNum(r[9]));
+      setIf("estado",(r[11]||inv.estado||"Pendiente").trim());
+      if(changed) actualizadas++;
+    });
+    if(actualizadas){ saveLocal(); render(); await reconcile(true,false); toast(actualizadas+" factura(s) actualizadas desde el Excel"); }
+    else toast("No había cambios que traer");
+  }catch(e){ console.error(e); toast("No se pudo leer el Excel de contabilidad","err"); }
+}
 
 /* ---- generar factura (PDF + Drive + contabilidad + cartera) ---- */
 async function generateInvoice(){
@@ -1901,6 +1945,12 @@ function openConfig(){
       </div>
       <div class="cfg-note">
         <b>Cómo funciona.</b> Tus datos (clientes, tareas, agenda y facturas) se guardan al instante en este equipo. Al conectar Google, se sincronizan con una hoja llamada <b>"${esc(DATA_SHEET_NAME)}"</b> que la app crea sola en tu Drive. Los eventos de la agenda se crean también en tu <b>Google Calendar</b>; las facturas generan el PDF en tu carpeta de INGRESOS y la fila en tu Excel de contabilidad. Al abrir desde otro dispositivo, pulsa <b>Cargar de Google</b> para traer lo último.
+      </div>
+      <div class="cfg-note">
+        <b>Excel de contabilidad.</b> La app solo <i>escribe</i> ahí (facturas nuevas y cobros); no se sincroniza solo. Si editas algo a mano en ese Excel (importe, cliente, concepto, fecha, cobros...), usa el botón de abajo para traer esos cambios a la app cuando quieras.
+      </div>
+      <div class="cfg-row">
+        <button class="btn-text" style="border:1px solid var(--line);border-radius:7px;padding:9px 14px;flex:1" onclick="sincronizarDesdeExcel()">Traer cambios del Excel de contabilidad</button>
       </div>
       <div class="cfg-row">
         <button class="btn-text" style="border:1px solid var(--line);border-radius:7px;padding:9px 14px;flex:1" onclick="exportJSON()">Exportar copia (.json)</button>
