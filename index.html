@@ -1511,16 +1511,28 @@ async function sincronizarDesdeExcel(){
     const sid=await getOrCreateContaSheet();
     const res=await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Facturas!A2:L1000`);
     const rows=res.values||[];
+    const numericRows=[], sinNumeroRows=[];
+    rows.forEach(r=>{ const facNum=String(r[0]||"").trim(); if(!facNum) return; (/^\d+$/.test(facNum)?numericRows:sinNumeroRows).push(r); });
+    const sinNumeroApp=state.facturas.filter(f=>Number(f.year)===YEAR && !/^\d+$/.test(String(f.num||"")));
+    // Si hay exactamente una factura "sin número" en el Excel y exactamente una en la app
+    // para este año, se emparejan con seguridad (aunque no tengan número que comparar).
+    const pares=[];
+    numericRows.forEach(r=>{
+      const inv=state.facturas.find(f=>Number(f.seq)===Number(String(r[0]).trim())&&Number(f.year)===YEAR);
+      if(inv) pares.push([r,inv]);
+    });
+    if(sinNumeroRows.length===1 && sinNumeroApp.length===1) pares.push([sinNumeroRows[0], sinNumeroApp[0]]);
     let actualizadas=0;
-    rows.forEach(r=>{
-      const facNum=String(r[0]||"").trim();
-      if(!facNum||!/^\d+$/.test(facNum)) return; // sin número (p.ej. "SN"): no se casa de forma fiable
-      const inv=state.facturas.find(f=>Number(f.seq)===Number(facNum)&&Number(f.year)===YEAR);
-      if(!inv) return;
+    pares.forEach(([r,inv])=>{
       let changed=false;
       const setIf=(field,val)=>{ if(val!==null && val!==undefined && String(inv[field])!==String(val)){ inv[field]=val; changed=true; } };
       const fecha=parseSpanishDate(r[1]); if(fecha) setIf("date",fecha);
-      setIf("clientName",(r[2]||inv.clientName||"").trim());
+      const nuevoNombre=(r[2]||inv.clientName||"").trim();
+      if(nuevoNombre && nuevoNombre!==inv.clientName){
+        const cli=clienteById(inv.clienteId);
+        if(cli){ cli.nombre=nuevoNombre; stampMod(cli); } // propaga el nombre corregido al cliente vinculado
+        setIf("clientName",nuevoNombre);
+      }
       setIf("concepto",(r[3]||"").trim());
       setIf("base",parseNum(r[4]));
       setIf("ivaPct",parseNum(r[5]));
