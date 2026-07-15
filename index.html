@@ -18,6 +18,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js"></script>
 <style>
 /* ===================== TOKENS ===================== */
 :root{
@@ -166,6 +168,10 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .due.urgent{background:var(--urgent-tint);color:var(--urgent)}
 .due.soon{background:var(--soon-tint);color:var(--soon)}
 .due.normal{background:var(--brand-tint);color:var(--brand)}
+.badge-estado{font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:20px;margin-left:6px;vertical-align:1px;white-space:nowrap}
+.badge-estado.ok{background:var(--ok-tint);color:var(--ok)}
+.badge-estado.warn{background:var(--soon-tint);color:var(--soon)}
+.badge-estado.due{background:var(--surface-2);color:var(--ink-soft)}
 .time-chip{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:600;color:var(--brand);background:var(--brand-tint);padding:3px 8px;border-radius:5px;flex:none}
 .pri{width:6px;align-self:stretch;border-radius:3px;flex:none}
 .pri.alta{background:var(--urgent)}.pri.media{background:var(--soon)}.pri.baja{background:var(--line-strong)}
@@ -210,6 +216,10 @@ input,select,textarea{font-family:inherit;font-size:14px}
 .section-head{display:flex;align-items:center;gap:9px;padding:8px 24px;margin-top:8px}
 .section-head .label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--ink-faint)}
 .section-head .add{margin-left:auto;font-size:12px;color:var(--brand);font-weight:600;background:none;border:none;display:flex;align-items:center;gap:4px}
+.proc-tabs{display:flex;gap:6px;flex-wrap:wrap;padding:12px 24px 4px;border-bottom:1px solid var(--line)}
+.proc-tab{font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);cursor:pointer;white-space:nowrap}
+.proc-tab.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.proc-tab.add{color:var(--brand);border-style:dashed}
 .section-head .add:hover{text-decoration:underline}
 .section-head .add svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
 .cli-detail .listwrap{padding:0 14px 8px}
@@ -329,6 +339,8 @@ td .acts{display:flex;gap:2px;justify-content:flex-end}
 .fgen{width:100%;margin-top:20px;background:var(--brand);color:#fff;border:none;padding:13px;font-size:14px;font-weight:700;border-radius:var(--radius-sm)}
 .fgen:hover{background:var(--brand-deep)}.fgen:disabled{background:var(--ink-faint);cursor:not-allowed}
 .fhist .fstats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.fac-filters{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+.fac-filters select{font-size:12.5px;padding:6px 9px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);flex:1;min-width:0}
 .fstat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-sm);padding:11px 13px;text-align:center}
 .fstat .v{font-family:"Newsreader",serif;font-size:21px;font-weight:500;color:var(--ink)}
 .fstat .l{font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
@@ -470,11 +482,13 @@ td .acts{display:flex;gap:2px;justify-content:flex-end}
    ========================================================================= */
 const CONFIG = {
   GOOGLE_CLIENT_ID: "422182341699-ff7j6b3s8o2c9bjthrfv0p7lj8smkvt7.apps.googleusercontent.com",
+  GOOGLE_API_KEY: "PON_AQUI_TU_API_KEY_DE_GOOGLE_CLOUD", // necesaria solo para el selector de carpeta "Firmados" — ver instrucciones
   TITULAR: "Gabriel Carreras Guixé"
 };
 const SCOPE = "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar.events";
 const STORE_KEY = "despacho_gcg_v1";
 const TOKEN_KEY = "gcg_token";          // token de sesión compartido con facturas
+const FIRMADOS_KEY = "gcg_firmados_folder_id"; // carpeta "Clientes/Firmados" elegida una vez con el Picker
 const DATA_SHEET_KEY = "gcg_despacho_sheet_id";
 const DATA_SHEET_NAME = "Despacho - Datos (GCG)";
 
@@ -494,21 +508,23 @@ const EMISOR = {
 const DRIVE = { declaracionesId:"1pdDKNN8mD2v4GA1xkx6-10OpjwweNPRG", knownFolders:{} };
 
 const YEAR = new Date().getFullYear();
-const TABS = { clientes:"Clientes", tareas:"Tareas", agenda:"Agenda", facturas:"Facturas", borrados:"Borrados" };
+const TABS = { clientes:"Clientes", tareas:"Tareas", agenda:"Agenda", facturas:"Facturas", procedimientos:"Procedimientos", borrados:"Borrados" };
 const HEADERS = {
-  clientes:["id","nombre","referencia","nif","direccionFiscal","email","telefono","estado","notas","ivaDefecto","irpfDefecto","creado","mod"],
-  tareas:["id","clienteId","titulo","detalle","prioridad","estado","vencimiento","creado","completadoEn","mod"],
-  agenda:["id","clienteId","titulo","tipo","fecha","hora","lugar","notas","gcalId","mod"],
-  facturas:["seq","year","num","date","clienteId","clientName","clientNif","concepto","base","iva","irpf","ivaPct","irpfPct","total","driveUrl"],
+  clientes:["id","nombre","referencia","nif","direccionFiscal","email","telefono","estado","notas","ivaDefecto","irpfDefecto","creado","mod","driveFolderId","driveFolderUrl"],
+  tareas:["id","clienteId","procedimientoId","titulo","detalle","prioridad","estado","vencimiento","creado","completadoEn","mod"],
+  agenda:["id","clienteId","procedimientoId","titulo","tipo","fecha","hora","lugar","notas","gcalId","mod"],
+  facturas:["seq","year","num","date","clienteId","procedimientoId","clientName","clientNif","concepto","base","iva","irpf","ivaPct","irpfPct","total","driveUrl","estado","cobrado"],
+  procedimientos:["id","clienteId","titulo","estado","notas","creado","mod"],
   borrados:["id","ts"]
 };
-const NUMFIELDS = { facturas:["seq","year","base","iva","irpf","ivaPct","irpfPct","total"], clientes:["mod"], tareas:["mod"], agenda:["mod"], borrados:["ts"] };
+const NUMFIELDS = { facturas:["seq","year","base","iva","irpf","ivaPct","irpfPct","total","cobrado"], clientes:["mod"], tareas:["mod"], agenda:["mod"], procedimientos:["mod"], borrados:["ts"] };
 
 /* ===================== ESTADO ===================== */
-let state = { clientes:[], tareas:[], agenda:[], facturas:[], borrados:[] };
+let state = { clientes:[], tareas:[], agenda:[], facturas:[], procedimientos:[], borrados:[] };
 let view = "hoy";
 let selectedCliente = null;
-let filters = { tareas:{ q:"", estado:"abiertas" } };
+let selectedProcedimiento = null; // null = "General" dentro de la ficha de cliente
+let filters = { tareas:{ q:"", estado:"abiertas" }, facturas:{ clienteId:"", year:String(new Date().getFullYear()), estado:"" } };
 let agendaView = "lista";        // lista | dia | semana | mes
 let agendaRef = null;            // fecha de referencia (se fija en init)
 let gAuth = { token:null, connected:false, email:"" };
@@ -545,41 +561,80 @@ function fmtMoney(n){ return fmtN(n)+" €"; }
 
 /* ===================== PERSISTENCIA LOCAL ===================== */
 function saveLocal(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
-function loadLocal(){ try{ const r=localStorage.getItem(STORE_KEY); if(r){ const d=JSON.parse(r); state={clientes:d.clientes||[],tareas:d.tareas||[],agenda:d.agenda||[],facturas:d.facturas||[],borrados:d.borrados||[]}; } }catch(e){} }
+function loadLocal(){ try{ const r=localStorage.getItem(STORE_KEY); if(r){ const d=JSON.parse(r); state={clientes:d.clientes||[],tareas:d.tareas||[],agenda:d.agenda||[],facturas:d.facturas||[],procedimientos:d.procedimientos||[],borrados:d.borrados||[]}; } }catch(e){} }
 function commit(){ saveLocal(); render(); scheduleSync(); }
 
-/* ===================== AUTENTICACIÓN GOOGLE (compartida) =====================
-   Mismo método que tu app de facturas: redirección OAuth, el token vuelve en
-   la URL y se guarda en la sesión. Un solo "Conectar" para datos y facturas. */
+/* ===================== AUTENTICACIÓN GOOGLE (Nivel 2: persistente + renovación silenciosa) =====================
+   Usa Google Identity Services (GIS). El token se guarda en localStorage (no
+   sessionStorage, que se borraba al cerrar la app) junto a su caducidad. Antes
+   de darlo por caducado, la app intenta una renovación silenciosa en segundo
+   plano (sin mostrar nada al usuario) aprovechando la sesión de Google activa
+   en el navegador. Solo se pide "Conectar" a mano la primera vez, o si esa
+   renovación silenciosa falla (p. ej. cerraste sesión de Google del todo). */
 function gReady(){ return !!CONFIG.GOOGLE_CLIENT_ID; }
-
-function checkOAuthCallback(){
-  if(location.hash.includes("access_token")){
-    const p=new URLSearchParams(location.hash.substring(1));
-    const t=p.get("access_token");
-    if(t){ gAuth.token=t; sessionStorage.setItem(TOKEN_KEY,t); history.replaceState(null,"",location.pathname); }
-  }
+let tokenClient=null;
+function initGis(){
+  if(!(window.google&&google.accounts&&google.accounts.oauth2)){ setTimeout(initGis,300); return; }
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CONFIG.GOOGLE_CLIENT_ID, scope:SCOPE,
+    callback:(resp)=>{
+      if(resp&&resp.access_token){ saveToken(resp); verifyToken(); }
+      else setSync("ready");
+    },
+    error_callback:()=>{ setSync("ready"); }
+  });
+}
+function saveToken(resp){
+  gAuth.token=resp.access_token;
+  gAuth.expiresAt=Date.now()+(Number(resp.expires_in)||3500)*1000;
+  localStorage.setItem(TOKEN_KEY, JSON.stringify({token:gAuth.token, expiresAt:gAuth.expiresAt}));
 }
 function connectGoogle(){
-  if(!gReady()){ toast("Falta el Client ID en el código","err"); return; }
-  const p=new URLSearchParams({ client_id:CONFIG.GOOGLE_CLIENT_ID, redirect_uri:location.href.split("#")[0].split("?")[0], response_type:"token", scope:SCOPE, prompt:"consent" });
-  location.href="https://accounts.google.com/o/oauth2/v2/auth?"+p;
+  if(!tokenClient){ toast("Cargando Google, prueba de nuevo en un segundo","err"); return; }
+  tokenClient.requestAccessToken({prompt:"consent"});
+}
+/* Intenta renovar el token sin pedir nada al usuario. Devuelve true/false. */
+function trySilentRenew(){
+  return new Promise(resolve=>{
+    if(!tokenClient){ resolve(false); return; }
+    const prev=tokenClient.callback;
+    tokenClient.callback=(resp)=>{
+      tokenClient.callback=prev;
+      if(resp&&resp.access_token){ saveToken(resp); resolve(true); }
+      else resolve(false);
+    };
+    try{ tokenClient.requestAccessToken({prompt:""}); }catch(e){ tokenClient.callback=prev; resolve(false); }
+  });
 }
 async function initAuth(){
-  const stored=sessionStorage.getItem(TOKEN_KEY);
-  if(stored){ gAuth.token=stored; await verifyToken(); }
-  else setSync("ready");
+  initGis();
+  const raw=localStorage.getItem(TOKEN_KEY);
+  if(raw){
+    try{
+      const {token,expiresAt}=JSON.parse(raw);
+      if(token&&expiresAt>Date.now()+60000){ gAuth.token=token; gAuth.expiresAt=expiresAt; await verifyToken(); return; }
+    }catch(e){}
+  }
+  // no hay token válido en local: probamos una renovación silenciosa antes de pedir conectar
+  setSync("ready");
+  setTimeout(async()=>{ if(await trySilentRenew()) verifyToken(); },500);
 }
 async function verifyToken(){
   try{
     const r=await fetch("https://www.googleapis.com/drive/v3/about?fields=user",{headers:{Authorization:"Bearer "+gAuth.token}});
     if(r.ok){ const d=await r.json(); gAuth.connected=true; gAuth.email=d.user?.emailAddress||""; setSync("ok"); pullData(true); }
-    else { sessionStorage.removeItem(TOKEN_KEY); gAuth.token=null; gAuth.connected=false; setSync("ready"); }
+    else { localStorage.removeItem(TOKEN_KEY); gAuth.token=null; gAuth.connected=false; setSync("ready"); }
   }catch(e){ setSync("error"); }
 }
+/* Renueva un poco antes de que caduque, para no pillarte a media acción. */
+setInterval(()=>{ if(gAuth.connected&&gAuth.expiresAt&&gAuth.expiresAt-Date.now()<5*60000) trySilentRenew(); }, 60000);
 async function api(url, opts={}){
   const r=await fetch(url,{ ...opts, headers:{ Authorization:"Bearer "+gAuth.token, "Content-Type":"application/json", ...(opts.headers||{}) } });
-  if(r.status===401){ gAuth.connected=false; sessionStorage.removeItem(TOKEN_KEY); setSync("ready"); throw new Error("401"); }
+  if(r.status===401){
+    if(await trySilentRenew()) return api(url, opts); // token renovado en silencio: reintenta una vez
+    gAuth.connected=false; localStorage.removeItem(TOKEN_KEY); setSync("ready");
+    throw new Error("401");
+  }
   if(!r.ok) throw new Error("API "+r.status);
   return r.json();
 }
@@ -645,6 +700,7 @@ function mergeStates(local, remote, applyTomb){
     tareas:mergeById(local.tareas, remote.tareas, tomb),
     agenda:mergeById(local.agenda, remote.agenda, tomb),
     facturas:mergeFacturas(local.facturas, remote.facturas, tomb),
+    procedimientos:mergeById(local.procedimientos, remote.procedimientos, tomb),
     borrados
   };
 }
@@ -654,7 +710,7 @@ function stampMod(o){ o.mod=Date.now(); return o; }
 async function readRemote(sid){
   const ranges=Object.values(TABS).map(t=>`ranges=${encodeURIComponent(t)}!A:Z`).join("&");
   const res=await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values:batchGet?${ranges}`);
-  const got={clientes:[],tareas:[],agenda:[],facturas:[],borrados:[]};
+  const got={clientes:[],tareas:[],agenda:[],facturas:[],procedimientos:[],borrados:[]};
   (res.valueRanges||[]).forEach(vr=>{
     const tab=decodeURIComponent(vr.range.split("!")[0].replace(/'/g,""));
     const kind=Object.keys(TABS).find(k=>TABS[k]===tab); if(!kind) return;
@@ -813,6 +869,8 @@ function renderHoy(){
     .sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
 
   const sinPlazo = abiertas.filter(t=>!t.vencimiento).length;
+  const facsPendientes = state.facturas.filter(f=>f.estado!=="Cobrada").sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  const totalPendienteGlobal = facsPendientes.reduce((s,f)=>s+Math.max(0,(Number(f.total)||0)-(Number(f.cobrado)||0)),0);
 
   $("#content").innerHTML = `
     <div class="summary">
@@ -837,7 +895,23 @@ function renderHoy(){
             : emptyMsg("Semana tranquila","Sin plazos ni citas próximas."))}
         ${sinPlazo ? `<div class="block"><div class="body"><div class="row" style="cursor:pointer" onclick="go('tareas')"><div class="main-txt"><div class="title" style="color:var(--ink-soft)">${sinPlazo} tarea(s) sin fecha de vencimiento</div><div class="meta">Ábrelas para asignarles un plazo →</div></div></div></div></div>`:""}
       </div>
-    </div>`;
+    </div>
+    ${facsPendientes.length?block("Facturas pendientes de cobro","r-soon",`<span class="tag r-soon">${fmtMoney(totalPendienteGlobal)}</span>`,
+        facsPendientes.slice(0,8).map(invoiceDueRow).join("")+(facsPendientes.length>8?`<div class="row" style="cursor:pointer" onclick="go('facturas')"><div class="main-txt"><div class="title" style="color:var(--brand)">Ver todas (${facsPendientes.length}) →</div></div></div>`:"")):""}`;
+}
+function invoiceDueRow(f){
+  const dias=f.date?daysUntil(f.date):null;
+  const pendiente=Math.max(0,(Number(f.total)||0)-(Number(f.cobrado)||0));
+  return `<div class="row" style="cursor:pointer" onclick="go('facturas')">
+    <div class="main-txt">
+      <div class="title">Factura ${esc(f.num||fmtNum(f.seq))} · ${esc(f.clientName)}</div>
+      <div class="meta">
+        <span class="badge-estado ${f.estado==='Parcial'?'warn':'due'}">${esc(f.estado||'Pendiente')}</span>
+        <span>${fmtMoney(pendiente)} pendiente</span>
+        ${dias!==null&&dias<-30?`<span style="color:var(--urgent);font-weight:600">${Math.abs(dias)} días</span>`:''}
+      </div>
+    </div>
+  </div>`;
 }
 function block(label,rail,tag,inner){
   return `<div class="block"><header><span class="rail ${rail}"></span><span class="label">${label}</span>${tag}</header><div class="body">${inner}</div></div>`;
@@ -904,11 +978,28 @@ function renderClientes(){
   </div>`;
 }
 function clienteDetail(c){
-  const tareas = state.tareas.filter(t=>t.clienteId===c.id).sort((a,b)=>{
+  const procs = state.procedimientos.filter(p=>p.clienteId===c.id).sort((a,b)=>(a.creado||"").localeCompare(b.creado||""));
+  const activeProc = selectedProcedimiento ? procs.find(p=>p.id===selectedProcedimiento) : null;
+  if(selectedProcedimiento && !activeProc) selectedProcedimiento=null; // por si se borró
+
+  const matchesProc = (x)=> selectedProcedimiento ? x.procedimientoId===selectedProcedimiento : !x.procedimientoId;
+  const tareas = state.tareas.filter(t=>t.clienteId===c.id && matchesProc(t)).sort((a,b)=>{
     if(a.estado==='hecha'!==(b.estado==='hecha')) return a.estado==='hecha'?1:-1;
     return (a.vencimiento||"9999").localeCompare(b.vencimiento||"9999");
   });
-  const eventos = state.agenda.filter(e=>e.clienteId===c.id).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+  const eventos = state.agenda.filter(e=>e.clienteId===c.id && matchesProc(e)).sort((a,b)=>(a.fecha+a.hora).localeCompare(b.fecha+b.hora));
+  const facsAll = state.facturas.filter(f=>f.clienteId===c.id);
+  const facs = facsAll.filter(f=>matchesProc(f)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const totalFacturado = facs.reduce((s,f)=>s+(Number(f.total)||0),0);
+  const totalPendiente = facs.filter(f=>f.estado!=="Cobrada").reduce((s,f)=>s+Math.max(0,(Number(f.total)||0)-(Number(f.cobrado)||0)),0);
+  const totalFacturadoCliente = facsAll.reduce((s,f)=>s+(Number(f.total)||0),0);
+
+  const tabs=`<div class="proc-tabs">
+    <button class="proc-tab ${!selectedProcedimiento?'on':''}" onclick="selectedProcedimiento=null;renderClientes()">General</button>
+    ${procs.map(p=>`<button class="proc-tab ${p.id===selectedProcedimiento?'on':''}" onclick="selectedProcedimiento='${p.id}';renderClientes()">${esc(p.titulo)}${p.estado==='cerrado'?' ✓':''}</button>`).join("")}
+    <button class="proc-tab add" onclick="newProcedimiento('${c.id}')">+ Procedimiento</button>
+  </div>`;
+
   return `
     <div class="head">
       <div class="avatar">${initials(c.nombre)}</div>
@@ -919,17 +1010,36 @@ function clienteDetail(c){
           ${c.email?`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`:""}
           ${c.telefono?`<a href="tel:${esc(c.telefono)}">${esc(c.telefono)}</a>`:""}
           ${c.estado?`<span>· ${esc(c.estado)}</span>`:""}
+          ${facsAll.length?`<span>· ${fmtMoney(totalFacturadoCliente)} facturado</span>`:""}
         </div>
       </div>
       <div class="hacts">
+        <button class="icon-btn" title="Carpeta en Drive" onclick="abrirCarpetaCliente('${c.id}')"><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg></button>
         <button class="icon-btn" title="Editar" onclick="editCliente('${c.id}')"><svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-3-3L5 17v3z"/></svg></button>
       </div>
     </div>
     ${c.notas?`<div class="notes-box">${esc(c.notas)}</div>`:""}
-    <div class="section-head"><span class="label">Pendientes</span><button class="add" onclick="newTask('${c.id}')"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Añadir</button></div>
-    <div class="listwrap">${tareas.length?tareas.map(taskRow).join(""):`<div class="empty" style="padding:14px">Sin tareas para este cliente.</div>`}</div>
-    <div class="section-head"><span class="label">Agenda</span><button class="add" onclick="newEvento('${c.id}')"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Añadir</button></div>
-    <div class="listwrap">${eventos.length?eventos.map(eventRow).join(""):`<div class="empty" style="padding:14px">Sin citas ni plazos.</div>`}</div>
+    ${tabs}
+    ${activeProc?`<div class="notes-box" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div>${activeProc.notas?esc(activeProc.notas):'<span style="color:var(--ink-faint)">Sin notas para este procedimiento.</span>'}</div>
+      <button class="icon-btn" title="Editar procedimiento" onclick="editProcedimiento('${activeProc.id}')"><svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8"><path d="M4 20h4L18.5 9.5a2 2 0 0 0-3-3L5 17v3z"/></svg></button>
+    </div>`:""}
+    <div class="section-head"><span class="label">Pendientes</span><button class="add" onclick="newTask('${c.id}','${selectedProcedimiento||''}')"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Añadir</button></div>
+    <div class="listwrap">${tareas.length?tareas.map(taskRow).join(""):`<div class="empty" style="padding:14px">Sin tareas ${activeProc?'en este procedimiento':'para este cliente'}.</div>`}</div>
+    <div class="section-head"><span class="label">Agenda</span><button class="add" onclick="newEvento('${c.id}','${selectedProcedimiento||''}')"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Añadir</button></div>
+    <div class="listwrap">${eventos.length?eventos.map(eventRow).join(""):`<div class="empty" style="padding:14px">Sin citas ni plazos ${activeProc?'en este procedimiento':''}.</div>`}</div>
+    <div class="section-head"><span class="label">Facturación${facs.length?` · ${fmtMoney(totalFacturado)}`:""}</span></div>
+    <div class="listwrap">${facs.length?facs.map(f=>`
+      <div class="row" style="display:flex;justify-content:space-between;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line);gap:10px">
+        <div>
+          <div style="font-size:13px;font-weight:600">Factura ${esc(f.num||fmtNum(f.seq))} <span class="badge-estado ${f.estado==='Cobrada'?'ok':f.estado==='Parcial'?'warn':'due'}">${esc(f.estado||'Pendiente')}</span></div>
+          <div style="font-size:12px;color:var(--ink-soft)">${f.date?new Date(f.date+"T12:00:00").toLocaleDateString("es-ES"):""}${f.concepto?" · "+esc(f.concepto):""}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13.5px;font-weight:600">${fmtMoney(f.total)}</div>
+          ${f.estado!=="Cobrada"?`<button class="btn-text" style="font-size:11.5px;padding:2px 0" onclick="registrarCobro(${f.seq},${f.year})">Registrar cobro</button>`:""}
+        </div>
+      </div>`).join(""):`<div class="empty" style="padding:14px">Sin facturas ${activeProc?'en este procedimiento':'para este cliente'}.</div>`}</div>
     <div style="height:14px"></div>`;
 }
 
@@ -1100,6 +1210,52 @@ function nextSeq(){
 }
 function fmtNum(n){ return String(n).padStart(3,"0"); }
 
+/* ---- Importación del histórico de facturas 2026 (previas a este CRM) ----
+   Datos tomados de Contabilidad_Ingresos_2026.xlsx aportado por el usuario. */
+const HISTORICO_FACTURAS_2026 = [
+ {seq:0,  num:"S/N", date:"2026-04-30", cliente:"JULIETA", concepto:"HERENCIA 5, 6, 7, 8 y 9", base:2000.00, ivaPct:21, irpfPct:0,  irpf:0.00,   total:2420.00, cobrado:2420.0, estado:"Cobrada"},
+ {seq:1,  num:"001", date:"2026-01-31", cliente:"PREICO JURÍDICOS", concepto:"ENERO", base:1100.00, ivaPct:21, irpfPct:7,  irpf:77.00,  total:1254.00, cobrado:1254.0, estado:"Cobrada"},
+ {seq:2,  num:"002", date:"2026-01-31", cliente:"SECTOR LEGAL", concepto:"ENERO", base:720.00, ivaPct:21, irpfPct:7,  irpf:50.40, total:820.80, cobrado:820.8, estado:"Cobrada"},
+ {seq:3,  num:"003", date:"2026-02-28", cliente:"PREICO JURÍDICOS", concepto:"FEBRERO", base:1100.00, ivaPct:21, irpfPct:7,  irpf:77.00, total:1254.00, cobrado:1254.0, estado:"Cobrada"},
+ {seq:4,  num:"004", date:"2026-02-28", cliente:"SECTOR LEGAL", concepto:"FEBRERO", base:720.00, ivaPct:21, irpfPct:7,  irpf:50.40, total:820.80, cobrado:820.8, estado:"Cobrada"},
+ {seq:5,  num:"005", date:"2026-02-28", cliente:"JORGE GARCÍA", concepto:"DEMANDA", base:1500.00, ivaPct:21, irpfPct:15, irpf:225.00, total:1590.00, cobrado:1590.0, estado:"Cobrada"},
+ {seq:6,  num:"006", date:"2026-03-31", cliente:"PREICO JURÍDICOS", concepto:"MARZO", base:1183.02, ivaPct:21, irpfPct:15, irpf:177.45, total:1254.00, cobrado:1254.0, estado:"Cobrada"},
+ {seq:7,  num:"007", date:"2026-03-31", cliente:"SECTOR LEGAL", concepto:"MARZO", base:774.34, ivaPct:21, irpfPct:15, irpf:116.15, total:820.80, cobrado:820.8, estado:"Cobrada"},
+ {seq:8,  num:"008", date:"2026-04-30", cliente:"LEOX", concepto:"ABRIL", base:70.00, ivaPct:21, irpfPct:15, irpf:10.50, total:74.20, cobrado:74.2, estado:"Cobrada"},
+ {seq:9,  num:"009", date:"2026-04-30", cliente:"ANNA ROSELL", concepto:"VISTAS", base:385.00, ivaPct:21, irpfPct:15, irpf:57.75, total:408.10, cobrado:408.1, estado:"Cobrada"},
+ {seq:10, num:"010", date:"2026-04-30", cliente:"JORGE GARCÍA", concepto:"DEMANDA", base:1500.00, ivaPct:21, irpfPct:15, irpf:225.00, total:1590.00, cobrado:225.0, estado:"Pendiente"},
+ {seq:11, num:"011", date:"2026-04-30", cliente:"SERGI INGLES", concepto:"CONTESTACIÓN", base:1500.00, ivaPct:21, irpfPct:0,  irpf:0.00, total:1815.00, cobrado:580.0, estado:"Pendiente"},
+ {seq:12, num:"012", date:"2026-04-30", cliente:"LEGAL PIGEON SL", concepto:"ABRIL", base:365.00, ivaPct:21, irpfPct:15, irpf:54.75, total:386.90, cobrado:0, estado:"Pendiente"},
+ {seq:13, num:"013", date:"2026-04-30", cliente:"PREICO JURÍDICOS", concepto:"ABRIL", base:236.60, ivaPct:21, irpfPct:15, irpf:35.49, total:250.80, cobrado:250.8, estado:"Cobrada"},
+ {seq:14, num:"014", date:"2026-04-30", cliente:"SECTOR LEGAL", concepto:"ABRIL", base:154.87, ivaPct:21, irpfPct:15, irpf:23.23, total:164.16, cobrado:0, estado:"Pendiente"},
+ {seq:15, num:"015", date:"2026-05-05", cliente:"LEOX", concepto:"VISTAS", base:340.00, ivaPct:21, irpfPct:15, irpf:51.00, total:360.40, cobrado:360.4, estado:"Cobrada"},
+ {seq:16, num:"016", date:"2026-05-21", cliente:"JORDI - JUANEDA", concepto:"VARIOS", base:2300.00, ivaPct:0,  irpfPct:0,  irpf:0.00, total:2300.00, cobrado:2300.0, estado:"Cobrada"},
+ {seq:17, num:"017", date:"2026-05-28", cliente:"REDCLAIMER LEGALTECH", concepto:"REUNIÓN", base:100.00, ivaPct:21, irpfPct:15, irpf:15.00, total:106.00, cobrado:106.0, estado:"Cobrada"},
+ {seq:18, num:"018", date:"2026-06-04", cliente:"ANNA ROSELL I ALVAREZ", concepto:"SUSTITUCIÓN VISTAS", base:250.00, ivaPct:21, irpfPct:15, irpf:37.50, total:265.00, cobrado:0, estado:"Pendiente"},
+ {seq:19, num:"019", date:"2026-06-05", cliente:"FRANCISCO JAVIER JUANEDA NAVARRO", concepto:"DEMANDA LEALTA", base:850.00, ivaPct:21, irpfPct:0,  irpf:0.00, total:1028.50, cobrado:1028.5, estado:"Cobrada"},
+ {seq:20, num:"020", date:"2026-06-08", cliente:"JORGE BUXENS ESCORIHUELA", concepto:"SUSTITUCIÓN VISTA SANTA COLOMA", base:55.00, ivaPct:21, irpfPct:15, irpf:8.25, total:58.30, cobrado:58.3, estado:"Cobrada"},
+ {seq:21, num:"021", date:"2026-05-31", cliente:"LEGAL PIGEON SL", concepto:"Sustitución vistas", base:579.30, ivaPct:21, irpfPct:7,  irpf:40.55, total:660.40, cobrado:0, estado:"Pendiente"},
+ {seq:22, num:"022", date:"2026-06-30", cliente:"ANNA ROSELL I ALVAREZ", concepto:"SUSTITUCIONES VISTAS", base:400.00, ivaPct:21, irpfPct:15, irpf:60.00, total:424.00, cobrado:0, estado:"Pendiente"},
+ {seq:23, num:"023", date:"2026-06-30", cliente:"LEGAL PIGEON SL", concepto:"SUSTITUCIONES VISTAS", base:547.92, ivaPct:21, irpfPct:7,  irpf:38.35, total:624.63, cobrado:0, estado:"Pendiente"}
+];
+async function importarHistorico(){
+  if(!confirm("Se importarán hasta "+HISTORICO_FACTURAS_2026.length+" facturas de 2026 al historial (las que ya existan con el mismo año y número se omiten). ¿Continuar?")) return;
+  let nuevas=0, omitidas=0, clientesCreados=0;
+  HISTORICO_FACTURAS_2026.forEach(h=>{
+    if(state.facturas.some(f=>Number(f.year)===2026&&Number(f.seq)===h.seq)){ omitidas++; return; }
+    let cli=state.clientes.find(c=>c.nombre.trim().toLowerCase()===h.cliente.trim().toLowerCase());
+    if(!cli){ cli={id:uid(),nombre:h.cliente,referencia:"",nif:"",direccionFiscal:"",email:"",telefono:"",estado:"",notas:"",ivaDefecto:h.ivaPct,irpfDefecto:h.irpfPct,creado:h.date,mod:Date.now()}; state.clientes.push(cli); clientesCreados++; }
+    state.facturas.push({seq:h.seq,year:2026,num:h.num,date:h.date,clienteId:cli.id,clientName:h.cliente,clientNif:"",concepto:h.concepto,base:h.base,iva:+(h.base*h.ivaPct/100).toFixed(2),irpf:h.irpf,ivaPct:h.ivaPct,irpfPct:h.irpfPct,total:h.total,driveUrl:null,estado:h.estado,cobrado:h.cobrado});
+    nuevas++;
+  });
+  saveLocal(); render();
+  if(gAuth.connected){
+    try{ await reconcile(true,false); }
+    catch(e){ console.error(e); toast(nuevas+" facturas importadas localmente, pero falló la sincronización con Google","err"); return; }
+  }
+  toast(nuevas+" facturas importadas"+(clientesCreados?" · "+clientesCreados+" clientes nuevos":"")+(omitidas?" · "+omitidas+" ya existían":""));
+}
+
 function renderFacturas(){
   if(!document.getElementById("fac-form-mounted")){
     $("#content").innerHTML=`
@@ -1126,6 +1282,7 @@ function renderFacturas(){
             <div class="ffield"><label>Email</label><input id="fac-email" type="email" placeholder="cliente@correo.com"></div>
           </div>
           <div class="frow one"><div class="ffield"><label>Dirección fiscal</label><input id="fac-addr" placeholder="Calle, nº, CP, ciudad"></div></div>
+          <div class="frow one"><div class="ffield"><label>Procedimiento (opcional)</label><select id="fac-procedimiento"><option value="">— General (sin procedimiento) —</option></select></div></div>
         </div>
         <div class="fac-sec">
           <div class="sec-t">Impuestos</div>
@@ -1161,18 +1318,19 @@ function renderFacturas(){
       </div>
       <div class="fhist">
         <div class="fstats" id="fac-stats"></div>
+        <div class="fac-filters" id="fac-filters"></div>
         <div id="fac-hist"></div>
       </div>
     </div>`;
     mountFacForm();
   }
-  renderFacStats(); renderFacHist();
+  renderFacStats(); renderFacFilters(); renderFacHist();
 }
 function mountFacForm(){
   $("#fac-date").value=todayISO();
   $("#fac-num").value=fmtNum(nextSeq());
   // restaurar selección de cliente si la había
-  if(facSel){ const c=clienteById(facSel); if(c){ $("#fac-name").value=c.nombre; $("#fac-nif").value=c.nif||""; $("#fac-email").value=c.email||""; $("#fac-addr").value=c.direccionFiscal||""; $("#fac-iva").value=c.ivaDefecto??21; $("#fac-irpf").value=c.irpfDefecto??15; } }
+  if(facSel){ const c=clienteById(facSel); if(c){ $("#fac-name").value=c.nombre; $("#fac-nif").value=c.nif||""; $("#fac-email").value=c.email||""; $("#fac-addr").value=c.direccionFiscal||""; $("#fac-iva").value=c.ivaDefecto??21; $("#fac-irpf").value=c.irpfDefecto??15; $("#fac-procedimiento").innerHTML=procedimientoOptions(facSel,""); } }
   renderFacLines();
 }
 
@@ -1226,6 +1384,7 @@ function selectFacCliente(id){
   const c=clienteById(id); if(!c) return; facSel=id;
   $("#fac-name").value=c.nombre; $("#fac-nif").value=c.nif||""; $("#fac-email").value=c.email||""; $("#fac-addr").value=c.direccionFiscal||"";
   $("#fac-iva").value=c.ivaDefecto??21; $("#fac-irpf").value=c.irpfDefecto??15;
+  $("#fac-procedimiento").innerHTML=procedimientoOptions(id,"");
   $("#fac-ac").style.display="none"; calcFacTotals();
 }
 function hideFacAC(){ setTimeout(()=>{ const e=$("#fac-ac"); if(e) e.style.display="none"; },150); }
@@ -1244,6 +1403,68 @@ async function getOrCreateIngresosFolder(dateStr){
   if(si.files&&si.files.length){ ingId=si.files[0].id; }
   else{ const c=await api("https://www.googleapis.com/drive/v3/files",{method:"POST",body:JSON.stringify({name:"INGRESOS",mimeType:"application/vnd.google-apps.folder",parents:[trimId]})}); ingId=c.id; }
   DRIVE.knownFolders[label]=ingId; return ingId;
+}
+
+/* ===================== CARPETA DE CLIENTE EN DRIVE =====================
+   La app solo tiene permiso (drive.file) sobre lo que ella misma crea o lo
+   que el usuario le entrega explícitamente con el selector de Google
+   (Picker). Por eso la carpeta "Clientes/Firmados" —creada a mano por el
+   usuario— se vincula UNA VEZ con el Picker; a partir de ahí la app puede
+   buscar y crear libremente subcarpetas por cliente dentro de ella. */
+let _firmadosFolderId = localStorage.getItem(FIRMADOS_KEY) || null;
+function loadPicker(){
+  return new Promise(resolve=>{
+    if(window.google&&google.picker){ resolve(); return; }
+    if(!window.gapi){ toast("No se pudo cargar el selector de Google","err"); resolve(); return; }
+    gapi.load("picker",()=>resolve());
+  });
+}
+async function vincularCarpetaFirmados(){
+  if(!gAuth.connected){ toast("Conecta Google primero","err"); return; }
+  if(!CONFIG.GOOGLE_API_KEY||CONFIG.GOOGLE_API_KEY.indexOf("PON_AQUI")===0){ toast("Falta configurar GOOGLE_API_KEY en el código (ver notas)","err"); return; }
+  await loadPicker();
+  if(!(window.google&&google.picker)) return;
+  const view=new google.picker.DocsView(google.picker.ViewId.FOLDERS).setSelectFolderEnabled(true).setIncludeFolders(true).setMode(google.picker.DocsViewMode.LIST);
+  const picker=new google.picker.PickerBuilder()
+    .addView(view)
+    .setOAuthToken(gAuth.token)
+    .setDeveloperKey(CONFIG.GOOGLE_API_KEY)
+    .setTitle("Elige tu carpeta Clientes → Firmados")
+    .setCallback(data=>{
+      if(data.action===google.picker.Action.PICKED&&data.docs&&data.docs[0]){
+        _firmadosFolderId=data.docs[0].id;
+        localStorage.setItem(FIRMADOS_KEY,_firmadosFolderId);
+        toast("Carpeta vinculada: "+data.docs[0].name);
+        closeModal(); openConfig();
+      }
+    }).build();
+  picker.setVisible(true);
+}
+async function getOrCreateClientFolder(cli){
+  if(cli.driveFolderId) return cli.driveFolderId;
+  if(!_firmadosFolderId) throw new Error("sin-firmados");
+  const safeName=cli.nombre.replace(/'/g,"\\'");
+  const q=encodeURIComponent(`name='${safeName}' and mimeType='application/vnd.google-apps.folder' and '${_firmadosFolderId}' in parents and trashed=false`);
+  const res=await api(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`);
+  let id;
+  if(res.files&&res.files.length){ id=res.files[0].id; }
+  else{
+    const created=await api("https://www.googleapis.com/drive/v3/files",{method:"POST",body:JSON.stringify({name:cli.nombre,mimeType:"application/vnd.google-apps.folder",parents:[_firmadosFolderId]})});
+    id=created.id;
+  }
+  cli.driveFolderId=id; cli.driveFolderUrl="https://drive.google.com/drive/folders/"+id; stampMod(cli); saveLocal();
+  return id;
+}
+async function abrirCarpetaCliente(id){
+  const cli=clienteById(id); if(!cli) return;
+  if(cli.driveFolderUrl){ window.open(cli.driveFolderUrl,"_blank"); return; }
+  if(!gAuth.connected){ toast("Conecta Google primero","err"); return; }
+  if(!_firmadosFolderId){ toast("Primero vincula tu carpeta Firmados desde Ajustes","err"); return; }
+  try{
+    const fid=await getOrCreateClientFolder(cli);
+    render();
+    window.open("https://drive.google.com/drive/folders/"+fid,"_blank");
+  }catch(e){ console.error(e); toast("No se pudo abrir/crear la carpeta en Drive","err"); }
 }
 async function uploadToDrive(pdfBytes,filename,dateStr){
   if(!gAuth.connected) return null;
@@ -1273,19 +1494,55 @@ async function getOrCreateContaSheet(){
   const created=await api("https://sheets.googleapis.com/v4/spreadsheets",{method:"POST",body:JSON.stringify({properties:{title:CONTA_NAME},sheets:[{properties:{title:"Facturas"}}]})});
   _contaSheetId=created.spreadsheetId;
   await api("https://www.googleapis.com/drive/v3/files/"+_contaSheetId+"?addParents="+DRIVE.declaracionesId+"&removeParents=root&fields=id",{method:"PATCH",body:"{}"});
-  await contaWrite(_contaSheetId,"Facturas!A1:K1",[["FACTURA","FECHA","CLIENTE","CONCEPTO","IMPORTE","TIPO IVA","TIPO RETENCIÓN","RETENCIÓN","INGRESO","IMPORTE COBRADO","ESTADO"]]);
+  await contaWrite(_contaSheetId,"Facturas!A1:L1",[["FACTURA","FECHA","CLIENTE","CONCEPTO","IMPORTE","TIPO IVA","TIPO RETENCIÓN","RETENCIÓN","INGRESO","COBRADO","PENDIENTE","ESTADO"]]);
   await api("https://sheets.googleapis.com/v4/spreadsheets/"+_contaSheetId+":batchUpdate",{method:"POST",body:JSON.stringify({requests:[
     {repeatCell:{range:{sheetId:0,startRowIndex:0,endRowIndex:1},cell:{userEnteredFormat:{backgroundColor:{red:.85,green:.85,blue:.85},textFormat:{bold:true}}},fields:"userEnteredFormat(backgroundColor,textFormat)"}},
-    {setDataValidation:{range:{sheetId:0,startRowIndex:1,endRowIndex:1000,startColumnIndex:10,endColumnIndex:11},rule:{condition:{type:"ONE_OF_LIST",values:[{userEnteredValue:"Pendiente"},{userEnteredValue:"Parcial"},{userEnteredValue:"Cobrada"}]},showCustomUi:true,strict:true}}}
+    {setDataValidation:{range:{sheetId:0,startRowIndex:1,endRowIndex:1000,startColumnIndex:11,endColumnIndex:12},rule:{condition:{type:"ONE_OF_LIST",values:[{userEnteredValue:"Pendiente"},{userEnteredValue:"Parcial"},{userEnteredValue:"Cobrada"}]},showCustomUi:true,strict:true}}}
   ]})});
   return _contaSheetId;
 }
 async function contaWrite(sid,range,values){ await api("https://sheets.googleapis.com/v4/spreadsheets/"+sid+"/values/"+encodeURIComponent(range)+"?valueInputOption=USER_ENTERED",{method:"PUT",body:JSON.stringify({values})}); }
-async function contaAppend(sid,values){ await api("https://sheets.googleapis.com/v4/spreadsheets/"+sid+"/values/Facturas!A:K:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",{method:"POST",body:JSON.stringify({values})}); }
+async function contaAppend(sid,values){ await api("https://sheets.googleapis.com/v4/spreadsheets/"+sid+"/values/Facturas!A:L:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",{method:"POST",body:JSON.stringify({values})}); }
 async function updateContabilidad(inv){
   const sid=await getOrCreateContaSheet();
   const dateFormatted=inv.date?new Date(inv.date+"T12:00:00").toLocaleDateString("es-ES"):"";
-  await contaAppend(sid,[[inv.seq,dateFormatted,inv.clientName,inv.concepto||"",inv.base,inv.ivaPct+"%",inv.irpfPct+"%",inv.irpf,inv.total,0,"Pendiente"]]);
+  await contaAppend(sid,[[inv.seq,dateFormatted,inv.clientName,inv.concepto||"",inv.base,inv.ivaPct+"%",inv.irpfPct+"%",inv.irpf,inv.total,0,inv.total,"Pendiente"]]);
+}
+/* Localiza la fila de esta factura en el Excel de contabilidad (por número de
+   factura, columna A) y actualiza solo COBRADO/PENDIENTE/ESTADO. Las
+   facturas sin número (p.ej. "S/N") no se pueden localizar así, y hay que
+   actualizarlas a mano en el Excel. */
+async function syncCobroExcel(inv){
+  const sid=await getOrCreateContaSheet();
+  const col=await api(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Facturas!A2:A1000`);
+  const rows=col.values||[];
+  let rowIndex=-1;
+  for(let i=0;i<rows.length;i++){ if(String((rows[i]||[])[0]||"").trim()===String(inv.seq)){ rowIndex=i+2; break; } }
+  if(rowIndex<0) throw new Error("fila-no-encontrada");
+  const pendiente=Math.max(0,+((Number(inv.total)||0)-(Number(inv.cobrado)||0)).toFixed(2));
+  await contaWrite(sid, `Facturas!J${rowIndex}:L${rowIndex}`, [[inv.cobrado, pendiente, inv.estado]]);
+}
+async function registrarCobro(seq,year){
+  const inv=state.facturas.find(f=>Number(f.seq)===Number(seq)&&Number(f.year)===Number(year));
+  if(!inv) return;
+  const pendiente=Math.max(0,(Number(inv.total)||0)-(Number(inv.cobrado)||0));
+  const input=prompt("Importe cobrado ahora (€). Pendiente: "+fmtMoney(pendiente), fmtN(pendiente));
+  if(input===null) return;
+  const monto=parseFloat(String(input).replace(",","."));
+  if(!(monto>0)){ toast("Importe no válido","err"); return; }
+  inv.cobrado=+((Number(inv.cobrado)||0)+monto).toFixed(2);
+  inv.estado = inv.cobrado >= (Number(inv.total)||0)-0.01 ? "Cobrada" : "Parcial";
+  saveLocal(); render();
+  if(gAuth.connected){
+    try{ await syncCobroExcel(inv); await reconcile(true,false); }
+    catch(e){
+      console.error(e);
+      const isSN=e&&e.message==="fila-no-encontrada";
+      toast(isSN?"Cobro guardado en la app. Esta factura no tiene número, así que actualiza el Excel a mano":"Cobro guardado en la app, pero falló la sincronización con el Excel","err");
+      return;
+    }
+  }
+  toast("Cobro registrado"+(inv.estado==="Cobrada"?" · Factura marcada como Cobrada":""));
 }
 
 /* ---- generar factura (PDF + Drive + contabilidad + cartera) ---- */
@@ -1377,7 +1634,7 @@ async function generateInvoice(){
   if(cli){ if(cNif)cli.nif=cNif; if(cEmail)cli.email=cEmail; if(cAddr)cli.direccionFiscal=cAddr; cli.ivaDefecto=ivaPctDisp; cli.irpfDefecto=irpfPctDisp; }
   else{ cli={id:uid(),nombre:clientName,referencia:"",nif:cNif,direccionFiscal:cAddr,email:cEmail,telefono:"",estado:"",notas:"",ivaDefecto:ivaPctDisp,irpfDefecto:irpfPctDisp,creado:todayISO()}; state.clientes.push(cli); }
 
-  const invRecord={seq,year:YEAR,num,date:dateVal,clienteId:cli.id,clientName,clientNif:cNif,concepto,base,iva,irpf,ivaPct:ivaPctDisp,irpfPct:irpfPctDisp,total,driveUrl:null};
+  const invRecord={seq,year:YEAR,num,date:dateVal,clienteId:cli.id,procedimientoId:$("#fac-procedimiento")?$("#fac-procedimiento").value:"",clientName,clientNif:cNif,concepto,base,iva,irpf,ivaPct:ivaPctDisp,irpfPct:irpfPctDisp,total,driveUrl:null,estado:"Pendiente",cobrado:0};
 
   if(gAuth.connected){
     btn.textContent="Subiendo a Drive…";
@@ -1397,6 +1654,7 @@ async function generateInvoice(){
   // reset formulario
   facLines=[{desc:"",qty:1,price:""}]; facSel=null;
   ["fac-name","fac-nif","fac-email","fac-addr","fac-notes"].forEach(id=>{ const e=$("#"+id); if(e)e.value=""; });
+  const facProcSel=$("#fac-procedimiento"); if(facProcSel) facProcSel.innerHTML=`<option value="">— General (sin procedimiento) —</option>`;
   $("#fac-iva").value=21; $("#fac-irpf").value=15;
   saveLocal(); render();     // guarda local y repinta historial al instante
   if(gAuth.connected){
@@ -1413,26 +1671,56 @@ async function generateInvoice(){
 
 /* ---- historial ---- */
 function renderFacStats(){
-  const yr=state.facturas.filter(i=>Number(i.year)===YEAR);
+  const fy=filters.facturas.year;
+  const yr=state.facturas.filter(i=>!fy||Number(i.year)===Number(fy));
   const base=yr.reduce((s,i)=>s+(Number(i.base)||0),0);
   const total=yr.reduce((s,i)=>s+(Number(i.total)||0),0);
   const el=$("#fac-stats"); if(!el) return;
   el.innerHTML=`
-    <div class="fstat"><div class="v">${yr.length}</div><div class="l">Facturas ${YEAR}</div></div>
+    <div class="fstat"><div class="v">${yr.length}</div><div class="l">Facturas ${fy||'(todos los años)'}</div></div>
     <div class="fstat"><div class="v">${fmtN(base)} €</div><div class="l">Base acumulada</div></div>
     <div class="fstat"><div class="v">${fmtN(total)} €</div><div class="l">Total facturado</div></div>
-    <div class="fstat"><div class="v">${state.clientes.length}</div><div class="l">Clientes</div></div>`;
+    <div class="fstat"><div class="v">${state.clientes.length}</div><div class="l">Clientes</div></div>
+    <button class="btn-text" style="grid-column:1/-1;margin-top:4px" onclick="importarHistorico()">Importar facturas de 2026 previas al CRM</button>`;
+}
+function renderFacFilters(){
+  const el=$("#fac-filters"); if(!el) return;
+  const years=[...new Set(state.facturas.map(f=>Number(f.year)))].sort((a,b)=>b-a);
+  if(!years.includes(YEAR)) years.unshift(YEAR);
+  const f=filters.facturas;
+  el.innerHTML=`
+    <select onchange="filters.facturas.year=this.value;renderFacStats();renderFacHist()">
+      <option value="">Todos los años</option>
+      ${years.map(y=>`<option value="${y}" ${String(y)===String(f.year)?'selected':''}>${y}</option>`).join("")}
+    </select>
+    <select onchange="filters.facturas.clienteId=this.value;renderFacHist()">
+      <option value="">Todos los clientes</option>
+      ${state.clientes.slice().sort((a,b)=>a.nombre.localeCompare(b.nombre)).map(c=>`<option value="${c.id}" ${c.id===f.clienteId?'selected':''}>${esc(c.nombre)}</option>`).join("")}
+    </select>
+    <select onchange="filters.facturas.estado=this.value;renderFacHist()">
+      <option value="">Todos los estados</option>
+      <option value="Cobrada" ${f.estado==='Cobrada'?'selected':''}>Cobrada</option>
+      <option value="Parcial" ${f.estado==='Parcial'?'selected':''}>Parcial</option>
+      <option value="Pendiente" ${f.estado==='Pendiente'?'selected':''}>Pendiente</option>
+    </select>`;
 }
 function renderFacHist(){
   const el=$("#fac-hist"); if(!el) return;
-  const yr=state.facturas.filter(i=>Number(i.year)===YEAR).slice().sort((a,b)=>Number(b.seq)-Number(a.seq));
-  if(!yr.length){ el.innerHTML=`<div class="empty"><span class="serif">Sin facturas este año</span>Las que generes aparecerán aquí.</div>`; return; }
-  el.innerHTML=yr.map(inv=>`
+  const f=filters.facturas;
+  let list=state.facturas.slice();
+  if(f.year) list=list.filter(i=>Number(i.year)===Number(f.year));
+  if(f.clienteId) list=list.filter(i=>i.clienteId===f.clienteId);
+  if(f.estado) list=list.filter(i=>(i.estado||"Pendiente")===f.estado);
+  list.sort((a,b)=> Number(b.year)-Number(a.year) || Number(b.seq)-Number(a.seq));
+  if(!list.length){ el.innerHTML=`<div class="empty"><span class="serif">Sin facturas</span>Ajusta los filtros o genera una nueva.</div>`; return; }
+  el.innerHTML=list.map(inv=>{
+    const proc=inv.procedimientoId?state.procedimientos.find(p=>p.id===inv.procedimientoId):null;
+    return `
     <div class="invcard">
       <div class="it">
         <div>
-          <div class="invnum">Factura ${inv.num||fmtNum(inv.seq)}</div>
-          <div class="invcli">${esc(inv.clientName)}${inv.clientNif?' · '+esc(inv.clientNif):''}</div>
+          <div class="invnum">Factura ${inv.num||fmtNum(inv.seq)} ${inv.estado?`<span class="badge-estado ${inv.estado==='Cobrada'?'ok':inv.estado==='Parcial'?'warn':'due'}">${esc(inv.estado)}</span>`:''}</div>
+          <div class="invcli">${esc(inv.clientName)}${inv.clientNif?' · '+esc(inv.clientNif):''}${proc?' · '+esc(proc.titulo):''}</div>
           <div class="invmeta">${inv.date?new Date(inv.date+"T12:00:00").toLocaleDateString("es-ES"):""} · IVA ${inv.ivaPct??21}% · Ret. ${inv.irpfPct??15}%</div>
         </div>
         <div>
@@ -1441,19 +1729,22 @@ function renderFacHist(){
           ${inv.driveUrl?`<div class="invdrive"><a href="${esc(inv.driveUrl)}" target="_blank">Ver en Drive ↗</a></div>`:""}
         </div>
       </div>
-      <button class="invdel" onclick="delFactura(${inv.seq})">Eliminar del historial</button>
-    </div>`).join("");
+      <div style="display:flex;gap:14px;align-items:center">
+        ${inv.estado!=="Cobrada"?`<button class="btn-text" style="font-size:12px" onclick="registrarCobro(${inv.seq},${inv.year})">Registrar cobro</button>`:""}
+        <button class="invdel" onclick="delFactura(${inv.seq},${inv.year})">Eliminar del historial</button>
+      </div>
+    </div>`;}).join("");
 }
-function delFactura(seq){
+function delFactura(seq,year){
   if(!confirm("¿Eliminar esta factura del historial de la app? (No borra el PDF de Drive ni la fila de contabilidad.)")) return;
-  state.facturas=state.facturas.filter(i=>!(Number(i.seq)===seq&&Number(i.year)===YEAR));
-  tombstone("fac:"+YEAR+"-"+seq);
+  state.facturas=state.facturas.filter(i=>!(Number(i.seq)===Number(seq)&&Number(i.year)===Number(year)));
+  tombstone("fac:"+year+"-"+seq);
   commit(); $("#fac-num") && ($("#fac-num").value=fmtNum(nextSeq()));
 }
 
 /* ===================== ACCIONES CRUD ===================== */
 function toggleTask(id){ const t=state.tareas.find(x=>x.id===id); if(!t)return; t.estado=t.estado==='hecha'?'abierta':'hecha'; t.completadoEn=t.estado==='hecha'?todayISO():""; stampMod(t); commit(); }
-function selectCliente(id){ selectedCliente=id; renderClientes(); }
+function selectCliente(id){ selectedCliente=id; selectedProcedimiento=null; renderClientes(); }
 function go(v){ setView(v); }
 
 /* ---------- Modales de formulario ---------- */
@@ -1505,22 +1796,71 @@ function saveCliente(id){
   closeModal(); commit(); toast("Cliente guardado");
 }
 function delCliente(id){
-  if(!confirm("¿Eliminar este cliente? Sus tareas y citas quedarán sin asignar.")) return;
+  if(!confirm("¿Eliminar este cliente? Sus tareas, citas y procedimientos quedarán sin asignar.")) return;
   state.clientes=state.clientes.filter(c=>c.id!==id); tombstone(id);
-  state.tareas.forEach(t=>{ if(t.clienteId===id){ t.clienteId=""; stampMod(t); } });
-  state.agenda.forEach(a=>{ if(a.clienteId===id){ a.clienteId=""; stampMod(a); } });
-  if(selectedCliente===id) selectedCliente=state.clientes[0]?state.clientes[0].id:null;
+  state.tareas.forEach(t=>{ if(t.clienteId===id){ t.clienteId=""; t.procedimientoId=""; stampMod(t); } });
+  state.agenda.forEach(a=>{ if(a.clienteId===id){ a.clienteId=""; a.procedimientoId=""; stampMod(a); } });
+  state.procedimientos.filter(p=>p.clienteId===id).forEach(p=>tombstone(p.id));
+  state.procedimientos=state.procedimientos.filter(p=>p.clienteId!==id);
+  if(selectedCliente===id){ selectedCliente=state.clientes[0]?state.clientes[0].id:null; selectedProcedimiento=null; }
   closeModal(); commit(); toast("Cliente eliminado");
 }
 
+/* PROCEDIMIENTO */
+function newProcedimiento(clienteId){ editProcedimiento(null,clienteId); }
+function editProcedimiento(id,preCliente){
+  const p=id?state.procedimientos.find(x=>x.id===id):{clienteId:preCliente||selectedCliente||"",estado:"abierto"};
+  openModal(`<div class="modal"><header><h3>${id?'Editar procedimiento':'Nuevo procedimiento'}</h3><button class="icon-btn" onclick="closeModal()"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+    <div class="body">
+      <input type="hidden" id="f-cliente-id" value="${esc(p.clienteId||'')}">
+      <div class="field"><label>Nombre del procedimiento / expediente</label><input id="f-titulo" value="${esc(p.titulo||'')}" placeholder="Ej. Desahucio local Sant Cugat, Herencia..."></div>
+      <div class="field"><label>Estado</label><select id="f-estado">
+        <option value="abierto" ${p.estado==='abierto'?'selected':''}>Abierto</option>
+        <option value="cerrado" ${p.estado==='cerrado'?'selected':''}>Cerrado</option></select></div>
+      <div class="field"><label>Notas</label><textarea id="f-notas" placeholder="Contexto del procedimiento…">${esc(p.notas||'')}</textarea></div>
+    </div>
+    <footer>
+      ${id?`<button class="btn-danger" onclick="delProcedimiento('${id}')"><svg viewBox="0 0 24 24"><path d="M5 7h14M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>Eliminar</button>`:`<span></span>`}
+      <div style="display:flex;gap:8px"><button class="btn-text" onclick="closeModal()">Cancelar</button><button class="btn-primary" onclick="saveProcedimiento('${id||''}')">Guardar</button></div>
+    </footer></div>`);
+}
+function saveProcedimiento(id){
+  const titulo=$("#f-titulo").value.trim();
+  if(!titulo){ toast("Escribe el nombre del procedimiento","err"); return; }
+  const data={ titulo, estado:$("#f-estado").value, notas:$("#f-notas").value.trim() };
+  if(id){ Object.assign(state.procedimientos.find(x=>x.id===id),data); stampMod(state.procedimientos.find(x=>x.id===id)); }
+  else{
+    const clienteId=$("#f-cliente-id").value;
+    const p=stampMod({id:uid(),clienteId,...data,creado:todayISO()});
+    state.procedimientos.push(p); selectedProcedimiento=p.id;
+  }
+  closeModal(); commit(); toast("Procedimiento guardado");
+}
+function delProcedimiento(id){
+  if(!confirm("¿Eliminar este procedimiento? Las tareas, citas y facturas que tenga pasarán a \"General\" (no se borran).")) return;
+  state.procedimientos=state.procedimientos.filter(p=>p.id!==id); tombstone(id);
+  state.tareas.forEach(t=>{ if(t.procedimientoId===id){ t.procedimientoId=""; stampMod(t); } });
+  state.agenda.forEach(a=>{ if(a.procedimientoId===id){ a.procedimientoId=""; stampMod(a); } });
+  state.facturas.forEach(f=>{ if(f.procedimientoId===id){ f.procedimientoId=""; } });
+  if(selectedProcedimiento===id) selectedProcedimiento=null;
+  closeModal(); commit(); toast("Procedimiento eliminado");
+}
+function procedimientoOptions(clienteId,sel){
+  const list=state.procedimientos.filter(p=>p.clienteId===clienteId);
+  return `<option value="">— General (sin procedimiento) —</option>`+list.map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${esc(p.titulo)}</option>`).join("");
+}
+
 /* TAREA */
-function newTask(clienteId){ editTask(null,clienteId); }
-function editTask(id,preCliente){
-  const t=id?state.tareas.find(x=>x.id===id):{clienteId:preCliente||""};
+function newTask(clienteId,procedimientoId){ editTask(null,clienteId,procedimientoId); }
+function editTask(id,preCliente,preProcedimiento){
+  const t=id?state.tareas.find(x=>x.id===id):{clienteId:preCliente||"",procedimientoId:preProcedimiento||""};
   openModal(`<div class="modal"><header><h3>${id?'Editar tarea':'Nueva tarea'}</h3><button class="icon-btn" onclick="closeModal()"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
     <div class="body">
       <div class="field"><label>Tarea</label><input id="f-titulo" value="${esc(t.titulo||'')}" placeholder="Redactar contestación, llamar a…"></div>
-      <div class="field"><label>Cliente</label><select id="f-cliente">${clienteOptions(t.clienteId)}</select></div>
+      <div class="field row2">
+        <div class="field"><label>Cliente</label><select id="f-cliente" onchange="refreshProcSelect()">${clienteOptions(t.clienteId)}</select></div>
+        <div class="field"><label>Procedimiento</label><select id="f-procedimiento">${procedimientoOptions(t.clienteId,t.procedimientoId)}</select></div>
+      </div>
       <div class="field row2">
         <div class="field"><label>Prioridad</label><select id="f-pri">
           <option value="baja" ${t.prioridad==='baja'?'selected':''}>Baja</option>
@@ -1535,10 +1875,11 @@ function editTask(id,preCliente){
       <div style="display:flex;gap:8px"><button class="btn-text" onclick="closeModal()">Cancelar</button><button class="btn-primary" onclick="saveTask('${id||''}')">Guardar</button></div>
     </footer></div>`);
 }
+function refreshProcSelect(){ const cid=$("#f-cliente").value; const sel=$("#f-procedimiento"); if(sel) sel.innerHTML=procedimientoOptions(cid,""); }
 function saveTask(id){
   const titulo=$("#f-titulo").value.trim();
   if(!titulo){ toast("Escribe el título de la tarea","err"); return; }
-  const data={ titulo, clienteId:$("#f-cliente").value, prioridad:$("#f-pri").value, vencimiento:$("#f-venc").value, detalle:$("#f-detalle").value.trim() };
+  const data={ titulo, clienteId:$("#f-cliente").value, procedimientoId:$("#f-procedimiento").value, prioridad:$("#f-pri").value, vencimiento:$("#f-venc").value, detalle:$("#f-detalle").value.trim() };
   if(id){ Object.assign(state.tareas.find(x=>x.id===id),data); stampMod(state.tareas.find(x=>x.id===id)); }
   else { state.tareas.push(stampMod({id:uid(),...data,estado:"abierta",creado:todayISO(),completadoEn:""})); }
   closeModal(); commit(); toast("Tarea guardada");
@@ -1546,9 +1887,9 @@ function saveTask(id){
 function delTask(id){ state.tareas=state.tareas.filter(t=>t.id!==id); tombstone(id); closeModal(); commit(); toast("Tarea eliminada"); }
 
 /* EVENTO */
-function newEvento(clienteId){ editEvento(null,clienteId); }
-function editEvento(id,preCliente,preFecha){
-  const a=id?state.agenda.find(x=>x.id===id):{clienteId:preCliente||"",fecha:preFecha||todayISO(),tipo:"Reunión"};
+function newEvento(clienteId,procedimientoId){ editEvento(null,clienteId,undefined,procedimientoId); }
+function editEvento(id,preCliente,preFecha,preProcedimiento){
+  const a=id?state.agenda.find(x=>x.id===id):{clienteId:preCliente||"",procedimientoId:preProcedimiento||"",fecha:preFecha||todayISO(),tipo:"Reunión"};
   const tipos=["Vista","Plazo","Reunión","Llamada","Otro"];
   const synced=!!a.gcalId;
   openModal(`<div class="modal"><header><h3>${id?'Editar evento':'Nuevo evento'}</h3><button class="icon-btn" onclick="closeModal()"><svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
@@ -1556,8 +1897,9 @@ function editEvento(id,preCliente,preFecha){
       <div class="field"><label>Título</label><input id="f-titulo" value="${esc(a.titulo||'')}" placeholder="Vista oral, vencimiento recurso…"></div>
       <div class="field row2">
         <div class="field"><label>Tipo</label><select id="f-tipo">${tipos.map(tp=>`<option ${a.tipo===tp?'selected':''}>${tp}</option>`).join("")}</select></div>
-        <div class="field"><label>Cliente</label><select id="f-cliente">${clienteOptions(a.clienteId)}</select></div>
+        <div class="field"><label>Cliente</label><select id="f-cliente" onchange="refreshProcSelect()">${clienteOptions(a.clienteId)}</select></div>
       </div>
+      <div class="field"><label>Procedimiento</label><select id="f-procedimiento">${procedimientoOptions(a.clienteId,a.procedimientoId)}</select></div>
       <div class="field row2">
         <div class="field"><label>Fecha</label><input id="f-fecha" type="date" value="${esc(a.fecha||todayISO())}"></div>
         <div class="field"><label>Hora</label><input id="f-hora" type="time" value="${esc(a.hora||'')}"></div>
@@ -1577,7 +1919,7 @@ function editEvento(id,preCliente,preFecha){
 async function saveEvento(id){
   const titulo=$("#f-titulo").value.trim();
   if(!titulo){ toast("Escribe el título del evento","err"); return; }
-  const data={ titulo, tipo:$("#f-tipo").value, clienteId:$("#f-cliente").value, fecha:$("#f-fecha").value, hora:$("#f-hora").value, lugar:$("#f-lugar").value.trim(), notas:$("#f-notas").value.trim() };
+  const data={ titulo, tipo:$("#f-tipo").value, clienteId:$("#f-cliente").value, procedimientoId:$("#f-procedimiento").value, fecha:$("#f-fecha").value, hora:$("#f-hora").value, lugar:$("#f-lugar").value.trim(), notas:$("#f-notas").value.trim() };
   if(!data.fecha){ toast("Indica la fecha","err"); return; }
   const wantCal=$("#f-gcal").checked;
   let ev;
@@ -1616,6 +1958,12 @@ function openConfig(){
         <button class="btn-text" style="border:1px solid var(--line);border-radius:7px;padding:9px 14px;flex:1" onclick="document.getElementById('imp').click()">Importar copia</button>
         <input type="file" id="imp" accept="application/json" style="display:none" onchange="importJSON(this)">
       </div>
+      <div class="cfg-note">
+        <b>Carpetas de cliente en Drive.</b> ${_firmadosFolderId?"Vinculada a tu carpeta <b>Clientes / Firmados</b>. Cada cliente tendrá ahí su propia subcarpeta.":"Aún no está vinculada tu carpeta <b>Clientes / Firmados</b>. Vincúlala una vez y la app creará y enlazará la subcarpeta de cada cliente automáticamente."}
+      </div>
+      <div class="cfg-row">
+        <button class="btn-text" style="border:1px solid var(--line);border-radius:7px;padding:9px 14px;flex:1" onclick="vincularCarpetaFirmados()">${_firmadosFolderId?"Cambiar carpeta Firmados":"Vincular carpeta Firmados"}</button>
+      </div>
     </div>
     <footer><span style="font-size:12px;color:var(--ink-faint)">${esc(CONFIG.TITULAR)}</span><button class="btn-primary" onclick="closeModal()">Cerrar</button></footer>
   </div>`);
@@ -1630,7 +1978,7 @@ function importJSON(input){
   r.onload=()=>{
     try{
       const d=JSON.parse(r.result);
-      const incoming={clientes:d.clientes||[],tareas:d.tareas||[],agenda:d.agenda||[],facturas:d.facturas||[],borrados:d.borrados||[]};
+      const incoming={clientes:d.clientes||[],tareas:d.tareas||[],agenda:d.agenda||[],facturas:d.facturas||[],procedimientos:d.procedimientos||[],borrados:d.borrados||[]};
       const nC=incoming.clientes.length, nT=incoming.tareas.length, nA=incoming.agenda.length;
       const replace=confirm(`La copia contiene ${nC} clientes, ${nT} tareas y ${nA} citas.\n\nAceptar = FUSIONAR (recomendado): se añade y actualiza sin borrar nada de lo que ya tienes.\nCancelar = volver sin importar.`);
       if(!replace) return;
@@ -1640,6 +1988,7 @@ function importJSON(input){
         tareas:mergeById(state.tareas, incoming.tareas, null),
         agenda:mergeById(state.agenda, incoming.agenda, null),
         facturas:mergeFacturas(state.facturas, incoming.facturas, null),
+        procedimientos:mergeById(state.procedimientos, incoming.procedimientos, null),
         borrados:mergeDeleted(state.borrados, incoming.borrados)
       };
       closeModal(); commit(); toast("Copia fusionada · no se ha borrado nada");
@@ -1701,7 +2050,6 @@ function seedIfEmpty(){
 }
 
 /* init */
-checkOAuthCallback();
 loadLocal();
 seedIfEmpty();
 render();
