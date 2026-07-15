@@ -19,7 +19,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="https://apis.google.com/js/api.js"></script>
 <style>
 /* ===================== TOKENS ===================== */
 :root{
@@ -482,13 +481,11 @@ td .acts{display:flex;gap:2px;justify-content:flex-end}
    ========================================================================= */
 const CONFIG = {
   GOOGLE_CLIENT_ID: "422182341699-ff7j6b3s8o2c9bjthrfv0p7lj8smkvt7.apps.googleusercontent.com",
-  GOOGLE_API_KEY: "PON_AQUI_TU_API_KEY_DE_GOOGLE_CLOUD", // necesaria solo para el selector de carpeta "Firmados" — ver instrucciones
   TITULAR: "Gabriel Carreras Guixé"
 };
 const SCOPE = "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar.events";
 const STORE_KEY = "despacho_gcg_v1";
 const TOKEN_KEY = "gcg_token";          // token de sesión compartido con facturas
-const FIRMADOS_KEY = "gcg_firmados_folder_id"; // carpeta "Clientes/Firmados" elegida una vez con el Picker
 const DATA_SHEET_KEY = "gcg_despacho_sheet_id";
 const DATA_SHEET_NAME = "Despacho - Datos (GCG)";
 
@@ -510,7 +507,7 @@ const DRIVE = { declaracionesId:"1pdDKNN8mD2v4GA1xkx6-10OpjwweNPRG", knownFolder
 const YEAR = new Date().getFullYear();
 const TABS = { clientes:"Clientes", tareas:"Tareas", agenda:"Agenda", facturas:"Facturas", procedimientos:"Procedimientos", borrados:"Borrados" };
 const HEADERS = {
-  clientes:["id","nombre","referencia","nif","direccionFiscal","email","telefono","estado","notas","ivaDefecto","irpfDefecto","creado","mod","driveFolderId","driveFolderUrl"],
+  clientes:["id","nombre","referencia","nif","direccionFiscal","email","telefono","estado","notas","ivaDefecto","irpfDefecto","creado","mod","driveFolderUrl"],
   tareas:["id","clienteId","procedimientoId","titulo","detalle","prioridad","estado","vencimiento","creado","completadoEn","mod"],
   agenda:["id","clienteId","procedimientoId","titulo","tipo","fecha","hora","lugar","notas","gcalId","mod"],
   facturas:["seq","year","num","date","clienteId","procedimientoId","clientName","clientNif","concepto","base","iva","irpf","ivaPct","irpfPct","total","driveUrl","estado","cobrado"],
@@ -1406,65 +1403,15 @@ async function getOrCreateIngresosFolder(dateStr){
 }
 
 /* ===================== CARPETA DE CLIENTE EN DRIVE =====================
-   La app solo tiene permiso (drive.file) sobre lo que ella misma crea o lo
-   que el usuario le entrega explícitamente con el selector de Google
-   (Picker). Por eso la carpeta "Clientes/Firmados" —creada a mano por el
-   usuario— se vincula UNA VEZ con el Picker; a partir de ahí la app puede
-   buscar y crear libremente subcarpetas por cliente dentro de ella. */
-let _firmadosFolderId = localStorage.getItem(FIRMADOS_KEY) || null;
-function loadPicker(){
-  return new Promise(resolve=>{
-    if(window.google&&google.picker){ resolve(); return; }
-    if(!window.gapi){ toast("No se pudo cargar el selector de Google","err"); resolve(); return; }
-    gapi.load("picker",()=>resolve());
-  });
-}
-async function vincularCarpetaFirmados(){
-  if(!gAuth.connected){ toast("Conecta Google primero","err"); return; }
-  if(!CONFIG.GOOGLE_API_KEY||CONFIG.GOOGLE_API_KEY.indexOf("PON_AQUI")===0){ toast("Falta configurar GOOGLE_API_KEY en el código (ver notas)","err"); return; }
-  await loadPicker();
-  if(!(window.google&&google.picker)) return;
-  const view=new google.picker.DocsView(google.picker.ViewId.FOLDERS).setSelectFolderEnabled(true).setIncludeFolders(true).setMode(google.picker.DocsViewMode.LIST);
-  const picker=new google.picker.PickerBuilder()
-    .addView(view)
-    .setOAuthToken(gAuth.token)
-    .setDeveloperKey(CONFIG.GOOGLE_API_KEY)
-    .setTitle("Elige tu carpeta Clientes → Firmados")
-    .setCallback(data=>{
-      if(data.action===google.picker.Action.PICKED&&data.docs&&data.docs[0]){
-        _firmadosFolderId=data.docs[0].id;
-        localStorage.setItem(FIRMADOS_KEY,_firmadosFolderId);
-        toast("Carpeta vinculada: "+data.docs[0].name);
-        closeModal(); openConfig();
-      }
-    }).build();
-  picker.setVisible(true);
-}
-async function getOrCreateClientFolder(cli){
-  if(cli.driveFolderId) return cli.driveFolderId;
-  if(!_firmadosFolderId) throw new Error("sin-firmados");
-  const safeName=cli.nombre.replace(/'/g,"\\'");
-  const q=encodeURIComponent(`name='${safeName}' and mimeType='application/vnd.google-apps.folder' and '${_firmadosFolderId}' in parents and trashed=false`);
-  const res=await api(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`);
-  let id;
-  if(res.files&&res.files.length){ id=res.files[0].id; }
-  else{
-    const created=await api("https://www.googleapis.com/drive/v3/files",{method:"POST",body:JSON.stringify({name:cli.nombre,mimeType:"application/vnd.google-apps.folder",parents:[_firmadosFolderId]})});
-    id=created.id;
-  }
-  cli.driveFolderId=id; cli.driveFolderUrl="https://drive.google.com/drive/folders/"+id; stampMod(cli); saveLocal();
-  return id;
-}
-async function abrirCarpetaCliente(id){
+   Sin acceso a Google Cloud Console no se puede usar el selector de Google
+   (Picker), así que el enlace a la carpeta de cada cliente se pega a mano
+   una vez en su ficha (campo "Carpeta de Drive"). El botón de la ficha
+   simplemente abre ese enlace. */
+function abrirCarpetaCliente(id){
   const cli=clienteById(id); if(!cli) return;
   if(cli.driveFolderUrl){ window.open(cli.driveFolderUrl,"_blank"); return; }
-  if(!gAuth.connected){ toast("Conecta Google primero","err"); return; }
-  if(!_firmadosFolderId){ toast("Primero vincula tu carpeta Firmados desde Ajustes","err"); return; }
-  try{
-    const fid=await getOrCreateClientFolder(cli);
-    render();
-    window.open("https://drive.google.com/drive/folders/"+fid,"_blank");
-  }catch(e){ console.error(e); toast("No se pudo abrir/crear la carpeta en Drive","err"); }
+  toast("Este cliente no tiene carpeta de Drive vinculada todavía","err");
+  editCliente(id);
 }
 async function uploadToDrive(pdfBytes,filename,dateStr){
   if(!gAuth.connected) return null;
@@ -1770,6 +1717,7 @@ function editCliente(id){
         <div class="field"><label>Teléfono</label><input id="f-tel" value="${esc(c.telefono||'')}" placeholder="+34 ..."></div>
       </div>
       <div class="field"><label>Notas</label><textarea id="f-notas" placeholder="Contexto del asunto, recordatorios…">${esc(c.notas||'')}</textarea></div>
+      <div class="field"><label>Carpeta de Drive (enlace)</label><input id="f-drive" value="${esc(c.driveFolderUrl||'')}" placeholder="https://drive.google.com/drive/folders/..."></div>
       <div class="section-head" style="padding:6px 0 0"><span class="label">Datos de facturación</span></div>
       <div class="field row2">
         <div class="field"><label>NIF / CIF</label><input id="f-nif" value="${esc(c.nif||'')}" placeholder="12345678A"></div>
@@ -1789,6 +1737,7 @@ function saveCliente(id){
   const nombre=$("#f-nombre").value.trim();
   if(!nombre){ toast("El nombre es obligatorio","err"); return; }
   const data={ nombre, referencia:$("#f-ref").value.trim(), estado:$("#f-estado").value.trim(), email:$("#f-email").value.trim(), telefono:$("#f-tel").value.trim(), notas:$("#f-notas").value.trim(),
+    driveFolderUrl:$("#f-drive").value.trim(),
     nif:$("#f-nif").value.trim(), direccionFiscal:$("#f-dir").value.trim(),
     ivaDefecto:parseFloat($("#f-ivad").value)||0, irpfDefecto:parseFloat($("#f-irpfd").value)||0 };
   if(id){ Object.assign(clienteById(id),data); stampMod(clienteById(id)); }
@@ -1957,12 +1906,6 @@ function openConfig(){
         <button class="btn-text" style="border:1px solid var(--line);border-radius:7px;padding:9px 14px;flex:1" onclick="exportJSON()">Exportar copia (.json)</button>
         <button class="btn-text" style="border:1px solid var(--line);border-radius:7px;padding:9px 14px;flex:1" onclick="document.getElementById('imp').click()">Importar copia</button>
         <input type="file" id="imp" accept="application/json" style="display:none" onchange="importJSON(this)">
-      </div>
-      <div class="cfg-note">
-        <b>Carpetas de cliente en Drive.</b> ${_firmadosFolderId?"Vinculada a tu carpeta <b>Clientes / Firmados</b>. Cada cliente tendrá ahí su propia subcarpeta.":"Aún no está vinculada tu carpeta <b>Clientes / Firmados</b>. Vincúlala una vez y la app creará y enlazará la subcarpeta de cada cliente automáticamente."}
-      </div>
-      <div class="cfg-row">
-        <button class="btn-text" style="border:1px solid var(--line);border-radius:7px;padding:9px 14px;flex:1" onclick="vincularCarpetaFirmados()">${_firmadosFolderId?"Cambiar carpeta Firmados":"Vincular carpeta Firmados"}</button>
       </div>
     </div>
     <footer><span style="font-size:12px;color:var(--ink-faint)">${esc(CONFIG.TITULAR)}</span><button class="btn-primary" onclick="closeModal()">Cerrar</button></footer>
