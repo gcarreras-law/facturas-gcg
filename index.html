@@ -1520,7 +1520,12 @@ function parseSpanishDate(s){
   if(!m) return null;
   return m[3]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[1]).padStart(2,"0");
 }
-function parseNum(s){ return parseFloat(String(s??"").replace("%","").replace(",",".")) || 0; }
+function parseNum(s){
+  let str=String(s??"").replace("%","").trim();
+  if(!str) return 0;
+  str=str.replace(/\./g,"").replace(",","."); // punto = miles, coma = decimal (formato español)
+  return parseFloat(str)||0;
+}
 async function sincronizarDesdeExcel(){
   if(!gAuth.connected){ toast("Conecta Google primero","err"); return; }
   if(!confirm("Esto actualizará en la app los datos de las facturas de "+YEAR+" que hayas modificado a mano en el Excel de contabilidad (importe, cliente, concepto, fecha, IVA, retención, cobros).\n\nOJO: no modifica el PDF ya emitido, solo el registro dentro de la app.\n\n¿Continuar?")) return;
