@@ -513,12 +513,12 @@ const HEADERS = {
   clientes:["id","nombre","referencia","nif","direccionFiscal","email","telefono","estado","notas","ivaDefecto","irpfDefecto","creado","mod","driveFolderUrl"],
   tareas:["id","clienteId","procedimientoId","titulo","detalle","prioridad","estado","vencimiento","creado","completadoEn","mod"],
   agenda:["id","clienteId","procedimientoId","titulo","tipo","fecha","hora","lugar","notas","gcalId","mod"],
-  facturas:["seq","year","num","date","clienteId","procedimientoId","clientName","clientNif","concepto","base","iva","irpf","ivaPct","irpfPct","total","driveUrl","estado","cobrado"],
+  facturas:["seq","year","num","date","clienteId","procedimientoId","clientName","clientNif","concepto","base","iva","irpf","ivaPct","irpfPct","total","driveUrl","estado","cobrado","mod"],
   procedimientos:["id","clienteId","titulo","estado","notas","creado","mod"],
   trabajos:["id","clienteId","procedimientoId","descripcion","importe","fecha","facturado","facturaRef","creado","mod"],
   borrados:["id","ts"]
 };
-const NUMFIELDS = { facturas:["seq","year","base","iva","irpf","ivaPct","irpfPct","total","cobrado"], clientes:["mod"], tareas:["mod"], agenda:["mod"], procedimientos:["mod"], trabajos:["importe","mod","facturado"], borrados:["ts"] };
+const NUMFIELDS = { facturas:["seq","year","base","iva","irpf","ivaPct","irpfPct","total","cobrado","mod"], clientes:["mod"], tareas:["mod"], agenda:["mod"], procedimientos:["mod"], trabajos:["importe","mod","facturado"], borrados:["ts"] };
 
 /* ===================== ESTADO ===================== */
 let state = { clientes:[], tareas:[], agenda:[], facturas:[], procedimientos:[], trabajos:[], borrados:[] };
@@ -684,7 +684,15 @@ function facKey(f){ return Number(f.year)+"-"+Number(f.seq); }
 function mergeFacturas(localArr, remoteArr, tomb){
   const map={};
   [...(remoteArr||[]), ...(localArr||[])].forEach(f=>{ if(f) map[facKey(f)]=f; });
-  if(tomb) Object.keys(tomb).forEach(id=>{ if(id.indexOf("fac:")===0){ const k=id.slice(4); if(map[k]) delete map[k]; } });
+  if(tomb) Object.keys(tomb).forEach(id=>{
+    if(id.indexOf("fac:")===0){
+      const k=id.slice(4);
+      // Solo se borra si la factura no se ha vuelto a crear/tocar DESPUÉS del borrado.
+      // Los números de factura se reutilizan, así que un borrado antiguo no debe
+      // bloquear para siempre una factura nueva con ese mismo número.
+      if(map[k] && (Number(map[k].mod)||0) <= tomb[id]) delete map[k];
+    }
+  });
   return Object.values(map);
 }
 function mergeDeleted(a,b){
@@ -1258,7 +1266,7 @@ async function importarHistorico(){
     if(state.facturas.some(f=>Number(f.year)===2026&&Number(f.seq)===h.seq)){ omitidas++; return; }
     let cli=state.clientes.find(c=>c.nombre.trim().toLowerCase()===h.cliente.trim().toLowerCase());
     if(!cli){ cli={id:uid(),nombre:h.cliente,referencia:"",nif:"",direccionFiscal:"",email:"",telefono:"",estado:"",notas:"",ivaDefecto:h.ivaPct,irpfDefecto:h.irpfPct,creado:h.date,mod:Date.now()}; state.clientes.push(cli); clientesCreados++; }
-    state.facturas.push({seq:h.seq,year:2026,num:h.num,date:h.date,clienteId:cli.id,clientName:h.cliente,clientNif:"",concepto:h.concepto,base:h.base,iva:+(h.base*h.ivaPct/100).toFixed(2),irpf:h.irpf,ivaPct:h.ivaPct,irpfPct:h.irpfPct,total:h.total,driveUrl:null,estado:h.estado,cobrado:h.cobrado});
+    state.facturas.push({seq:h.seq,year:2026,num:h.num,date:h.date,clienteId:cli.id,clientName:h.cliente,clientNif:"",concepto:h.concepto,base:h.base,iva:+(h.base*h.ivaPct/100).toFixed(2),irpf:h.irpf,ivaPct:h.ivaPct,irpfPct:h.irpfPct,total:h.total,driveUrl:null,estado:h.estado,cobrado:h.cobrado,mod:Date.now()});
     nuevas++;
   });
   saveLocal(); render();
@@ -1494,7 +1502,7 @@ async function registrarCobro(seq,year){
   if(input===null) return;
   const monto=parseFloat(String(input).replace(",","."));
   if(!(monto>0)){ toast("Importe no válido","err"); return; }
-  inv.cobrado=+((Number(inv.cobrado)||0)+monto).toFixed(2);
+  inv.cobrado=+((Number(inv.cobrado)||0)+monto).toFixed(2); inv.mod=Date.now();
   inv.estado = inv.cobrado >= (Number(inv.total)||0)-0.01 ? "Cobrada" : "Parcial";
   saveLocal(); render();
   if(gAuth.connected){
@@ -1564,6 +1572,7 @@ async function sincronizarDesdeExcel(){
       setIf("cobrado",parseNum(r[9]));
       setIf("estado",(r[11]||inv.estado||"Pendiente").trim());
       if(changed) actualizadas++;
+      if(changed) inv.mod=Date.now();
     });
     if(actualizadas){ saveLocal(); render(); await reconcile(true,false); toast(actualizadas+" factura(s) actualizadas desde el Excel"); }
     else toast("No había cambios que traer");
@@ -1659,7 +1668,7 @@ async function generateInvoice(){
   if(cli){ if(cNif)cli.nif=cNif; if(cEmail)cli.email=cEmail; if(cAddr)cli.direccionFiscal=cAddr; cli.ivaDefecto=ivaPctDisp; cli.irpfDefecto=irpfPctDisp; }
   else{ cli={id:uid(),nombre:clientName,referencia:"",nif:cNif,direccionFiscal:cAddr,email:cEmail,telefono:"",estado:"",notas:"",ivaDefecto:ivaPctDisp,irpfDefecto:irpfPctDisp,creado:todayISO()}; state.clientes.push(cli); }
 
-  const invRecord={seq,year:YEAR,num,date:dateVal,clienteId:cli.id,procedimientoId:$("#fac-procedimiento")?$("#fac-procedimiento").value:"",clientName,clientNif:cNif,concepto,base,iva,irpf,ivaPct:ivaPctDisp,irpfPct:irpfPctDisp,total,driveUrl:null,estado:"Pendiente",cobrado:0};
+  const invRecord={seq,year:YEAR,num,date:dateVal,clienteId:cli.id,procedimientoId:$("#fac-procedimiento")?$("#fac-procedimiento").value:"",clientName,clientNif:cNif,concepto,base,iva,irpf,ivaPct:ivaPctDisp,irpfPct:irpfPctDisp,total,driveUrl:null,estado:"Pendiente",cobrado:0,mod:Date.now()};
 
   if(gAuth.connected){
     btn.textContent="Subiendo a Drive…";
@@ -1791,7 +1800,7 @@ function confirmarReasignacion(seq,year){
     cli=clienteById($("#f-reasign-cliente").value);
   }
   if(!cli){ toast("Elige un cliente de la lista o escribe uno nuevo","err"); return; }
-  inv.clienteId=cli.id; inv.clientName=cli.nombre; if(cli.nif) inv.clientNif=cli.nif;
+  inv.clienteId=cli.id; inv.clientName=cli.nombre; if(cli.nif) inv.clientNif=cli.nif; inv.mod=Date.now();
   inv.procedimientoId=""; // el procedimiento del cliente anterior no aplica al nuevo
   closeModal(); commit(); toast("Factura asignada a "+cli.nombre);
 }
