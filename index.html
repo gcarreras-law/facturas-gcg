@@ -559,6 +559,7 @@ function dayEntries(iso){
 function openEntry(e){ if(e.kind==="tarea") editTask(e.ref.id); else editEvento(e.ref.id); }
 function fmtN(n){ return (Number(n)||0).toFixed(2).replace(".",","); }
 function fmtMoney(n){ return fmtN(n)+" €"; }
+function round2(n){ return Math.round((Number(n)||0)*100)/100; } // evita descuadres de 1 céntimo entre las líneas y el total
 
 /* ===================== PERSISTENCIA LOCAL ===================== */
 function saveLocal(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
@@ -1379,12 +1380,13 @@ function getIva(){ return Math.max(0,parseFloat($("#fac-iva").value)||0)/100; }
 function getIrpf(){ return Math.max(0,parseFloat($("#fac-irpf").value)||0)/100; }
 function setFacTaxes(iva,irpf){ $("#fac-iva").value=iva; $("#fac-irpf").value=irpf; calcFacTotals(); }
 function calcFacTotals(){
-  const base=facLines.reduce((s,l)=>s+(parseFloat(l.qty)||0)*(parseFloat(l.price)||0),0);
+  const base=round2(facLines.reduce((s,l)=>s+(parseFloat(l.qty)||0)*(parseFloat(l.price)||0),0));
   const ivaPct=getIva(), irpfPct=getIrpf();
+  const iva=round2(base*ivaPct), irpf=round2(base*irpfPct);
   $("#ft-base").textContent=fmtMoney(base);
-  $("#ft-iva").textContent=fmtMoney(base*ivaPct);
-  $("#ft-irpf").textContent="−"+fmtMoney(base*irpfPct);
-  $("#ft-total").textContent=fmtMoney(base+base*ivaPct-base*irpfPct);
+  $("#ft-iva").textContent=fmtMoney(iva);
+  $("#ft-irpf").textContent="−"+fmtMoney(irpf);
+  $("#ft-total").textContent=fmtMoney(base+iva-irpf);
   const ivaD=parseFloat($("#fac-iva").value)||0, irpfD=parseFloat($("#fac-irpf").value)||0;
   $("#ft-lbl-iva").textContent="IVA "+ivaD+"%";
   $("#ft-lbl-irpf").textContent="Retención "+irpfD+"%";
@@ -1611,8 +1613,8 @@ async function generateInvoice(){
   const notes=$("#fac-notes").value.trim();
   const ivaPct=getIva(), irpfPct=getIrpf();
   const ivaPctDisp=parseFloat($("#fac-iva").value)||0, irpfPctDisp=parseFloat($("#fac-irpf").value)||0;
-  const base=facLines.reduce((s,l)=>s+(parseFloat(l.qty)||0)*(parseFloat(l.price)||0),0);
-  const iva=base*ivaPct, irpf=base*irpfPct, total=base+iva-irpf;
+  const base=round2(facLines.reduce((s,l)=>s+(parseFloat(l.qty)||0)*(parseFloat(l.price)||0),0));
+  const iva=round2(base*ivaPct), irpf=round2(base*irpfPct), total=round2(base+iva-irpf);
 
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:"mm",format:"a4"});
